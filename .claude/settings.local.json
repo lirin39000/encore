@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import requests; print\\(requests.__version__\\)\")",
+      "Bash(where python *)",
+      "Bash(python -V)",
+      "PowerShell(python --version)",
+      "PowerShell(& \"C:\\\\Users\\\\��Ƥ����\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\python.exe\" --version)",
+      "PowerShell(& \"C:\\\\Users\\\\��Ƥ����\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\python.exe\" -c \"import requests; print\\(requests.__version__\\)\")",
+      "PowerShell(& \"C:\\\\Users\\\\��Ƥ����\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\python.exe\" -m pip install requests)",
+      "PowerShell(& \"C:\\\\Users\\\\��Ƥ����\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python314\\\\python.exe\" \"C:\\\\Users\\\\��Ƥ����\\\\Desktop\\\\files\\\\xiudong_client.py\")",
+      "PowerShell(chcp 65001)",
+      "Bash(PYTHONIOENCODING=utf-8 /c/Users/鱼皮大人/AppData/Local/Programs/Python/Python314/python.exe -c ' *)",
+      "mcp__claude-in-chrome__navigate",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "Bash(rm -f d46ea68.js 29bb735.js c1fd10e.js 0fab27a.js f6b3a12.js 0579cb9.js resp_out.txt)",
+      "Bash(rm -rf __pycache__)",
+      "Bash(\"/c/Users/鱼皮大人/AppData/Local/Programs/Python/Python314/python.exe\" -m pip install curl_cffi)",
+      "Bash(PYTHONIOENCODING=utf-8 \"/c/Users/鱼皮大人/AppData/Local/Programs/Python/Python314/python.exe\" xiudong_client.py)",
+      "Bash(rm -f d46ea68.js 29bb735.js c1fd10e.js 0fab27a.js f6b3a12.js)",
+      "Bash(\"/c/Users/鱼皮大人/AppData/Local/Programs/Python/Python314/python.exe\" -c \"import pandas, openpyxl; print\\(pandas.__version__, openpyxl.__version__\\)\")",
+      "Bash(\"/c/Users/鱼皮大人/AppData/Local/Programs/Python/Python314/python.exe\" -m pip install pandas openpyxl)",
+      "Bash(rm -f 29bb735.js c1fd10e.js 0fab27a.js d46ea68.js f6b3a12.js)",
+      "WebSearch",
+      "WebFetch(domain:support.claude.com)",
+      "Bash(claude mcp *)",
+      "PowerShell(claude mcp add --scope user --transport http claude-design https://api.anthropic.com/v1/design/mcp)",
+      "Bash(ls -la \"/c/Users/鱼皮大人/Desktop/\"*.zip 2>&1)",
+      "Bash(mkdir -p \"/c/Users/鱼皮大人/AppData/Local/Temp/claude/C--Users------Desktop-files/bff2b68d-231b-42e1-8700-bacb16eb72e9/scratchpad/handoff_extract\")",
+      "Read(//c/Users/鱼皮大人/AppData/Local/Temp/claude/C--Users------Desktop-files/bff2b68d-231b-42e1-8700-bacb16eb72e9/scratchpad/**)",
+      "Bash(unzip -o \"/c/Users/鱼皮大人/Desktop/场次音乐演出推荐-handoff.zip\")",
+      "WebFetch(domain:help.aliyun.com)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(npm *)"
+    ]
+  }
+}

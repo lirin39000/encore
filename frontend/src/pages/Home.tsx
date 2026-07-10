@@ -78,7 +78,7 @@ export default function Home() {
           placeholder="搜索艺人、场馆或演出"
           style={{
             width: '100%', boxSizing: 'border-box', padding: '13px 18px', borderRadius: 12,
-            border: `1px solid ${theme.border}`, background: theme.panel, fontSize: 14, color: theme.text,
+            border: `1px solid ${theme.border}`, background: theme.panel, fontSize: 16, color: theme.text,
             outline: 'none', fontFamily: fontSans,
           }}
         />

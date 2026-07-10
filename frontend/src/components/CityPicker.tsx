@@ -67,7 +67,7 @@ export default function CityPicker({ onClose }: CityPickerProps) {
             borderRadius: 10,
             border: `1px solid ${theme.border}`,
             background: theme.subtle,
-            fontSize: 14,
+            fontSize: 16,
             color: theme.text,
             outline: 'none',
             fontFamily: fontSans,

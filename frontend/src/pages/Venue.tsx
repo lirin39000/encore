@@ -95,7 +95,7 @@ export default function Venue() {
             placeholder="分享你的观演体验…"
             style={{
               resize: 'none', height: 60, padding: 10, border: `1px solid ${theme.border}`, borderRadius: 8,
-              fontSize: 13, fontFamily: fontSans, outline: 'none', background: theme.panel, color: theme.text,
+              fontSize: 16, fontFamily: fontSans, outline: 'none', background: theme.panel, color: theme.text,
             }}
           />
           <button

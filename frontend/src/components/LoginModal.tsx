@@ -44,7 +44,16 @@ export default function LoginModal({ onClose }: LoginModalProps) {
       setCodeSent(true)
       startCountdown()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '发送失败')
+      // fetch() 本身失败(网络断了/超时)会抛 TypeError，跟后端明确返回的错误(比如手机号格式不对)不是一回事——
+      // 网络问题时请求很可能已经到达后端、短信也真发出去了，只是响应没传回来，这种情况也让用户能进到输验证码那一步，
+      // 不然短信收到了却卡在这里进不去
+      if (e instanceof TypeError) {
+        setError('网络不稳定，请求可能已经发送成功——如果收到了验证码短信，可以直接输入')
+        setCodeSent(true)
+        startCountdown()
+      } else {
+        setError(e instanceof Error ? e.message : '发送失败')
+      }
     } finally {
       setSending(false)
     }
@@ -78,7 +87,9 @@ export default function LoginModal({ onClose }: LoginModalProps) {
     borderRadius: 10,
     border: `1px solid ${theme.border}`,
     background: theme.subtle,
-    fontSize: 14,
+    // iOS Safari 有个特性：输入框文字小于16px时，点击输入框会把整个页面自动放大，
+    // 16px 是不触发这个行为的最小值
+    fontSize: 16,
     color: theme.text,
     outline: 'none',
     fontFamily: fontSans,

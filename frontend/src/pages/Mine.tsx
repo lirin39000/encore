@@ -81,7 +81,7 @@ export default function Mine() {
               onChange={(e) => setAddInput(e.target.value)}
               placeholder="输入艺人名添加关注"
               style={{
-                flex: 1, padding: '10px 14px', border: `1px solid ${theme.border}`, borderRadius: 10,
+                flex: 1, minWidth: 0, padding: '10px 14px', border: `1px solid ${theme.border}`, borderRadius: 10,
                 fontSize: 16, outline: 'none', background: theme.subtle, color: theme.text, fontFamily: fontSans,
               }}
             />
@@ -97,7 +97,7 @@ export default function Mine() {
                 }
               }}
               style={{
-                background: theme.gold, color: '#FFFFFF', border: 'none', borderRadius: 10,
+                flexShrink: 0, background: theme.gold, color: '#FFFFFF', border: 'none', borderRadius: 10,
                 padding: '10px 18px', fontSize: 13, cursor: 'pointer',
               }}
             >

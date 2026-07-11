@@ -19,6 +19,14 @@ function formatPerformers(performers: string | null): string {
   return `${names.slice(0, 3).join('/')} 等${names.length}组`
 }
 
+const WEEKDAY_LABELS = ['一', '二', '三', '四', '五', '六', '日']
+
+function formatShowTime(show: Show): string | null {
+  if (!show.show_time) return null
+  if (show.weekday === null || show.weekday === undefined) return show.show_time
+  return `${show.show_time} 周${WEEKDAY_LABELS[show.weekday]}`
+}
+
 export default function ShowCard({ show }: ShowCardProps) {
   const posterImage = show.poster_url
     ? `url(${show.poster_url})`
@@ -118,7 +126,7 @@ export default function ShowCard({ show }: ShowCardProps) {
                 {formatPerformers(show.performers)}
               </span>
             </div>
-            <div style={{ fontFamily: fontSans, fontSize: 12, color: 'rgba(242,236,225,0.75)' }}>{show.show_time}</div>
+            <div style={{ fontFamily: fontSans, fontSize: 12, color: 'rgba(242,236,225,0.75)' }}>{formatShowTime(show)}</div>
             <div style={{ fontFamily: fontSans, fontSize: 12, color: 'rgba(242,236,225,0.75)', display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
               {venueLine()}
             </div>
@@ -282,7 +290,7 @@ export default function ShowCard({ show }: ShowCardProps) {
           <div style={contentStyle}>
             <div style={titleStyle}>{show.title}</div>
             <div style={clampedSubTextStyle}>{formatPerformers(show.performers)}</div>
-            <div style={subTextStyle}>{show.show_time}</div>
+            <div style={subTextStyle}>{formatShowTime(show)}</div>
             <div style={{ ...subTextStyle, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               {venueLine()}
             </div>

@@ -5,6 +5,7 @@ export interface Show {
   price: string | null
   price_min: number | null
   show_time: string | null
+  weekday: number | null // 0=周一 ... 6=周日，跟后端 Python datetime.weekday() 对齐
   site_name: string | null
   city_name: string | null
   sold_out: number | null

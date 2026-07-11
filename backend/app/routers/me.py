@@ -79,7 +79,7 @@ def list_favorites(user_id: int = Depends(require_user)):
         rows = conn.execute(
             text(
                 """
-                SELECT s.id, s.title, s.performers, s.price, s.show_time, s.site_name,
+                SELECT s.id, s.title, s.performers, s.price, s.show_time, s.weekday, s.site_name,
                        s.city_name, s.sold_out, s.poster_url
                 FROM favorites f JOIN shows s ON s.id = f.show_id
                 WHERE f.user_id = :uid ORDER BY f.created_at DESC

@@ -87,7 +87,7 @@ def list_shows(
             text(
                 f"""
                 SELECT s.id, s.title, s.performers, s.price, s.price_min, s.show_time,
-                       s.show_dt, s.site_name, s.city_name, s.sold_out, s.poster_url, s.venue_id
+                       s.show_dt, s.weekday, s.site_name, s.city_name, s.sold_out, s.poster_url, s.venue_id
                 FROM shows s
                 WHERE {where_sql}
                 """

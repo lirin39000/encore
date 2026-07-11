@@ -6,3 +6,4 @@ httpx
 alibabacloud_dypnsapi20170525
 alibabacloud_tea_openapi
 psycopg[binary]
+zhconv

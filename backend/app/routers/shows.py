@@ -5,6 +5,7 @@ from sqlmodel import text
 
 from app.db import engine, LIKE_OP
 from app.auth_util import get_user_id_from_token
+from app.text_normalize import normalize_name
 
 router = APIRouter()
 
@@ -66,6 +67,7 @@ def list_shows(
             for i, d in enumerate(day_list):
                 params[f"wd{i}"] = d
 
+    normalized_followed: list[str] = []
     with engine.connect() as conn:
         if scope == "followed" and user_id:
             artist_rows = conn.execute(
@@ -75,10 +77,10 @@ def list_shows(
             followed_names = [r[0] for r in artist_rows]
             if not followed_names:
                 return {"page": page, "page_size": page_size, "total": 0, "results": []}
-            like_clauses = " OR ".join(f"s.performers {LIKE_OP} :fa{i}" for i in range(len(followed_names)))
-            where.append(f"({like_clauses})")
-            for i, name in enumerate(followed_names):
-                params[f"fa{i}"] = f"%{name}%"
+            # 关注艺人的名字是用户自己打的，跟秀动官方名字可能有空格/简繁体差异，
+            # 这种归一化没法直接翻成 SQL LIKE，所以这一步匹配挪到 Python 里做，
+            # 数据库这边只按其他筛选条件(城市/星期/价格等)查，艺人过滤在下面统一处理
+            normalized_followed = [normalize_name(n) for n in followed_names]
 
         where_sql = " AND ".join(where)
         rows = conn.execute(
@@ -94,6 +96,12 @@ def list_shows(
         ).mappings().all()
 
     results = [dict(r) for r in rows]
+
+    if normalized_followed:
+        results = [
+            r for r in results
+            if any(nf in normalize_name(r["performers"]) for nf in normalized_followed)
+        ]
 
     if sort == "price":
         results.sort(key=lambda r: (r["price_min"] is None, r["price_min"]))
@@ -131,8 +139,8 @@ def search_artists(q: str = "", limit: int = 20):
             if name:
                 names.add(name)
 
-    q_norm = q.strip().lower()
-    matches = [n for n in names if q_norm in n.lower()] if q_norm else sorted(names)
+    q_norm = normalize_name(q)
+    matches = [n for n in names if q_norm in normalize_name(n)] if q_norm else sorted(names)
     if q_norm:
-        matches.sort(key=lambda n: (not n.lower().startswith(q_norm), n))
+        matches.sort(key=lambda n: (not normalize_name(n).startswith(q_norm), n))
     return {"results": matches[:limit]}

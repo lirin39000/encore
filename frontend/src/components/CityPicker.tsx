@@ -87,7 +87,7 @@ export default function CityPicker({ onClose }: CityPickerProps) {
       </div>
 
       <div style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', padding: '0 16px 24px' }}>
+        <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', padding: '0 40px 24px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ fontSize: 12, color: theme.textSec }}>我的城市</div>
             <span
@@ -142,7 +142,7 @@ export default function CityPicker({ onClose }: CityPickerProps) {
         {!query && (
           <div
             style={{
-              position: 'absolute', right: 4, top: 8, bottom: 8, display: 'flex',
+              position: 'absolute', right: 14, top: 8, bottom: 8, display: 'flex',
               flexDirection: 'column', justifyContent: 'center', gap: 1,
             }}
           >

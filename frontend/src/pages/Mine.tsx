@@ -114,13 +114,12 @@ export default function Mine() {
               />
               <button
                 onClick={() => handleAdd(addInput)}
-                disabled={addArtist.isPending}
                 style={{
                   flexShrink: 0, background: theme.gold, color: '#FFFFFF', border: 'none', borderRadius: 10,
-                  padding: '10px 18px', fontSize: 13, cursor: 'pointer', opacity: addArtist.isPending ? 0.6 : 1,
+                  padding: '10px 18px', fontSize: 13, cursor: 'pointer',
                 }}
               >
-                {addArtist.isPending ? '添加中...' : '添加'}
+                添加
               </button>
             </div>
             {showSuggestions && suggestions.length > 0 && (

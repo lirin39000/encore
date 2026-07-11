@@ -37,7 +37,7 @@ export default function ShowCard({ show }: ShowCardProps) {
       openLoginModal()
       return
     }
-    toggleFavorite.mutate({ showId: show.id, isFavorite })
+    toggleFavorite.mutate({ show, isFavorite })
   }
 
   const venueLine = () => (

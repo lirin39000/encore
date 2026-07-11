@@ -39,9 +39,21 @@ export function useAddFollowedArtist() {
 
 export function useRemoveFollowedArtist() {
   const qc = useQueryClient()
+  const key = ['me', 'followed-artists']
   return useMutation({
     mutationFn: (artistName: string) => apiDelete(`/me/followed-artists/${encodeURIComponent(artistName)}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['me', 'followed-artists'] }),
+    onMutate: async (artistName: string) => {
+      await qc.cancelQueries({ queryKey: key })
+      const previous = qc.getQueryData<{ results: FollowedArtist[] }>(key)
+      qc.setQueryData<{ results: FollowedArtist[] }>(key, (old) => ({
+        results: (old?.results ?? []).filter((a) => a.artist_name !== artistName),
+      }))
+      return { previous }
+    },
+    onError: (_err, _artistName, context) => {
+      if (context?.previous) qc.setQueryData(key, context.previous)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: key }),
   })
 }
 
@@ -55,9 +67,22 @@ export function useFavorites(enabled: boolean) {
 
 export function useToggleFavorite() {
   const qc = useQueryClient()
+  const key = ['me', 'favorites']
   return useMutation({
-    mutationFn: ({ showId, isFavorite }: { showId: number; isFavorite: boolean }) =>
-      isFavorite ? apiDelete(`/me/favorites/${showId}`) : apiPost(`/me/favorites/${showId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['me', 'favorites'] }),
+    mutationFn: ({ show, isFavorite }: { show: Show; isFavorite: boolean }) =>
+      isFavorite ? apiDelete(`/me/favorites/${show.id}`) : apiPost(`/me/favorites/${show.id}`),
+    onMutate: async ({ show, isFavorite }: { show: Show; isFavorite: boolean }) => {
+      await qc.cancelQueries({ queryKey: key })
+      const previous = qc.getQueryData<{ results: Show[] }>(key)
+      qc.setQueryData<{ results: Show[] }>(key, (old) => {
+        const results = old?.results ?? []
+        return { results: isFavorite ? results.filter((s) => s.id !== show.id) : [show, ...results] }
+      })
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) qc.setQueryData(key, context.previous)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: key }),
   })
 }

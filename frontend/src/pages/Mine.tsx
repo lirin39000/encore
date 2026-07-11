@@ -41,8 +41,9 @@ export default function Mine() {
     }
     const trimmed = name.trim()
     if (!trimmed) return
-    addArtist.mutate(trimmed, { onSuccess: () => setAddInput('') })
+    setAddInput('')
     setShowSuggestions(false)
+    addArtist.mutate(trimmed)
   }
 
   const tabs: { key: Tab; label: string }[] = [
@@ -150,6 +151,9 @@ export default function Mine() {
           </div>
 
           <div style={{ marginTop: 16 }}>
+            {loggedIn && !artistsData && (
+              <div style={{ fontSize: 13, color: theme.textSec, padding: '20px 0' }}>加载中...</div>
+            )}
             {(artistsData?.results ?? []).map((a) => (
               <div
                 key={a.id}
@@ -185,6 +189,9 @@ export default function Mine() {
 
       {tab === 'favorites' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+          {loggedIn && !favoritesData && (
+            <div style={{ fontSize: 13, color: theme.textSec, gridColumn: '1 / -1', padding: '20px 0' }}>加载中...</div>
+          )}
           {(favoritesData?.results ?? []).map((show) => (
             <ShowCard key={show.id} show={show} />
           ))}

@@ -57,6 +57,7 @@ export default function FilterPanel({ onClose }: { onClose: () => void }) {
         left: -shiftLeft,
         zIndex: 25,
         display: 'flex',
+        flexDirection: 'column',
         background: theme.glassBg,
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
@@ -68,6 +69,7 @@ export default function FilterPanel({ onClose }: { onClose: () => void }) {
         maxWidth: 'calc(100vw - 32px)',
       }}
     >
+      <div style={{ display: 'flex' }}>
       <div style={{ display: 'flex', flexDirection: 'column', width: 72, flexShrink: 0, borderRight: `1px solid ${theme.glassBorder}`, padding: 8 }}>
         {tabs.map((t) => (
           <button
@@ -122,14 +124,6 @@ export default function FilterPanel({ onClose }: { onClose: () => void }) {
             {cityNames.length === 0 && (
               <div style={{ fontSize: 12, color: theme.textSec, marginTop: 10 }}>不限城市，点 + 添加</div>
             )}
-            <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-              <button
-                onClick={onClose}
-                style={{ flex: 1, background: theme.accent, color: '#FFFFFF', border: 'none', borderRadius: 10, padding: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-              >
-                确定
-              </button>
-            </div>
           </>
         )}
 
@@ -173,6 +167,16 @@ export default function FilterPanel({ onClose }: { onClose: () => void }) {
             />
           </div>
         )}
+      </div>
+      </div>
+
+      <div style={{ padding: 12, borderTop: `1px solid ${theme.glassBorder}` }}>
+        <button
+          onClick={onClose}
+          style={{ width: '100%', background: theme.accent, color: '#FFFFFF', border: 'none', borderRadius: 10, padding: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+        >
+          确定
+        </button>
       </div>
 
       {showCityPicker && <CityPicker onClose={() => setShowCityPicker(false)} />}

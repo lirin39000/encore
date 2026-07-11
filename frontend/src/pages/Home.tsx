@@ -16,7 +16,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('')
   const { scope, setScope, cityNames, removeCity, freeWeekdays, maxPrice } = useFiltersStore()
   const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteShows(searchQuery)
-  const { user, logout, openLoginModal } = useAuthStore()
+  const { user, openLoginModal } = useAuthStore()
   const filterPanelRef = useRef<HTMLDivElement>(null)
   useClickOutside(filterPanelRef, () => setFilterPanelOpen(false), filterPanelOpen)
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -51,13 +51,7 @@ export default function Home() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div style={{ fontFamily: fontSerif, fontSize: 22, fontWeight: 700, letterSpacing: 1 }}>Encore</div>
         {user ? (
-          <div
-            onClick={logout}
-            style={{ fontSize: 13, color: theme.textSec, cursor: 'pointer' }}
-            title="点击退出登录"
-          >
-            {user.phone}
-          </div>
+          <div style={{ fontSize: 13, color: theme.textSec }}>{user.phone}</div>
         ) : (
           <button
             onClick={openLoginModal}

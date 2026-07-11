@@ -136,7 +136,7 @@ export default function FilterPanel({ onClose }: { onClose: () => void }) {
         {tab === 'schedule' && (
           <div>
             <div style={{ fontSize: 13, color: theme.textSec, marginBottom: 12 }}>每周有空的时间</div>
-            <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', gap: 4, justifyContent: 'space-between' }}>
               {WEEKDAYS.map((d) => {
                 const active = freeWeekdays.includes(d.key)
                 return (
@@ -144,11 +144,11 @@ export default function FilterPanel({ onClose }: { onClose: () => void }) {
                     key={d.key}
                     onClick={() => toggleWeekday(d.key)}
                     style={{
-                      width: 36, height: 36, borderRadius: '50%', flexShrink: 0, padding: 0,
+                      width: 30, height: 30, borderRadius: '50%', flexShrink: 0, padding: 0,
                       border: `1px solid ${active ? theme.accent : theme.border}`,
                       background: active ? theme.accent : theme.panel,
                       color: active ? '#FFFFFF' : theme.text,
-                      cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                      cursor: 'pointer', fontSize: 12, fontWeight: 600,
                     }}
                   >
                     {d.label}

@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiGet } from '../api/client'
 import type { ShowListResponse } from '../api/types'
 import { useFiltersStore } from '../store/filters'
@@ -27,5 +27,13 @@ export function useInfiniteShows(q = '') {
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.page * lastPage.page_size < lastPage.total ? lastPage.page + 1 : undefined,
+  })
+}
+
+export function useSearchArtists(q: string) {
+  return useQuery({
+    queryKey: ['artists', q],
+    queryFn: () => apiGet<{ results: string[] }>(`/artists?q=${encodeURIComponent(q)}&limit=20`),
+    enabled: q.trim().length > 0,
   })
 }

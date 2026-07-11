@@ -26,6 +26,10 @@ export default function CityPicker({ onClose }: CityPickerProps) {
       .filter((g) => g.cities.length > 0)
   }, [query])
 
+  const jumpToLetter = (letter: string) => {
+    document.getElementById(`city-section-${letter}`)?.scrollIntoView({ block: 'start' })
+  }
+
   const plusButtonStyle = (selected: boolean) => ({
     width: 22,
     height: 22,
@@ -62,6 +66,7 @@ export default function CityPicker({ onClose }: CityPickerProps) {
           placeholder="搜索城市"
           style={{
             flex: 1,
+            minWidth: 0,
             boxSizing: 'border-box',
             padding: '10px 14px',
             borderRadius: 10,
@@ -73,76 +78,85 @@ export default function CityPicker({ onClose }: CityPickerProps) {
             fontFamily: fontSans,
           }}
         />
-        <span onClick={onClose} style={{ fontSize: 14, color: theme.textSec, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        <span
+          onClick={onClose}
+          style={{ flexShrink: 0, fontSize: 14, color: theme.textSec, cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
           取消
         </span>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <div style={{ fontSize: 12, color: theme.textSec }}>我的城市</div>
-          <span
-            onClick={onClose}
-            style={{
-              background: theme.accent, color: '#FFFFFF', fontSize: 13, fontWeight: 700,
-              padding: '6px 16px', borderRadius: 8, cursor: 'pointer',
-            }}
-          >
-            完成
-          </span>
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-          {cityNames.length === 0 && (
-            <span style={{ fontSize: 13, color: theme.textSec }}>还没有选择城市，不限则显示全部</span>
-          )}
-          {cityNames.map((name) => (
+
+      <div style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, overflowY: 'auto', padding: '0 16px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ fontSize: 12, color: theme.textSec }}>我的城市</div>
             <span
-              key={name}
+              onClick={onClose}
               style={{
-                display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '6px 10px 6px 14px',
-                borderRadius: 8, background: theme.panel, border: `1px solid ${theme.border}`, color: theme.text,
+                background: theme.accent, color: '#FFFFFF', fontSize: 13, fontWeight: 700,
+                padding: '6px 16px', borderRadius: 8, cursor: 'pointer',
               }}
             >
-              {name}
-              <span onClick={() => removeCity(name)} style={{ cursor: 'pointer', color: theme.textSec }}>✕</span>
+              完成
             </span>
-          ))}
-        </div>
-
-        <div style={{ fontSize: 12, color: theme.textSec, marginBottom: 10 }}>热门城市</div>
-        <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 18 }}>
-          {(cityData.hotCities as City[]).map((c) => (
-            <div
-              key={c.code}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '12px 0', borderBottom: `1px solid ${theme.border}`,
-              }}
-            >
-              <span style={{ fontSize: 14, color: theme.text }}>{c.name}</span>
-              <button onClick={() => toggle(c.name)} style={plusButtonStyle(cityNames.includes(c.name))}>+</button>
-            </div>
-          ))}
-        </div>
-
-        {groups.map((g) => (
-          <div key={g.letter}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: theme.textSec, padding: '6px 0', borderBottom: `1px solid ${theme.border}` }}>
-              {g.letter}
-            </div>
-            {g.cities.map((c) => (
-              <div
-                key={c.code}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+            {cityNames.length === 0 && (
+              <span style={{ fontSize: 13, color: theme.textSec }}>还没有选择城市，不限则显示全部</span>
+            )}
+            {cityNames.map((name) => (
+              <span
+                key={name}
                 style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 14,
-                  color: theme.text, padding: '12px 0', borderBottom: `1px solid ${theme.border}`,
+                  display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '6px 10px 6px 14px',
+                  borderRadius: 8, background: theme.panel, border: `1px solid ${theme.border}`, color: theme.text,
                 }}
               >
-                <span>{c.name}</span>
-                <button onClick={() => toggle(c.name)} style={plusButtonStyle(cityNames.includes(c.name))}>+</button>
-              </div>
+                {name}
+                <span onClick={() => removeCity(name)} style={{ cursor: 'pointer', color: theme.textSec }}>✕</span>
+              </span>
             ))}
           </div>
-        ))}
+
+          {groups.map((g) => (
+            <div key={g.letter} id={`city-section-${g.letter}`}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: theme.textSec, padding: '6px 0', borderBottom: `1px solid ${theme.border}` }}>
+                {g.letter}
+              </div>
+              {g.cities.map((c) => (
+                <div
+                  key={c.code}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 14,
+                    color: theme.text, padding: '12px 0', borderBottom: `1px solid ${theme.border}`,
+                  }}
+                >
+                  <span>{c.name}</span>
+                  <button onClick={() => toggle(c.name)} style={plusButtonStyle(cityNames.includes(c.name))}>+</button>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {!query && (
+          <div
+            style={{
+              position: 'absolute', right: 4, top: 8, bottom: 8, display: 'flex',
+              flexDirection: 'column', justifyContent: 'center', gap: 1,
+            }}
+          >
+            {groups.map((g) => (
+              <span
+                key={g.letter}
+                onClick={() => jumpToLetter(g.letter)}
+                style={{ fontSize: 10, color: theme.textSec, textAlign: 'center', padding: '1px 4px', cursor: 'pointer' }}
+              >
+                {g.letter}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>,
     document.body

@@ -110,3 +110,29 @@ def list_shows(
         "total": total,
         "results": page_results,
     }
+
+
+@router.get("/artists")
+def search_artists(q: str = "", limit: int = 20):
+    """
+    艺人名搜索候选，给关注艺人的输入框用。名单来自 shows.performers 拆出来的所有艺人名，
+    覆盖"抓到过至少一场演出"的艺人（不管这场演出是不是已经过去了），不是秀动网的完整艺人库
+    （没有单独的艺人库接口，只能从已抓到的演出数据里反推）
+    """
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("SELECT DISTINCT performers FROM shows WHERE performers IS NOT NULL AND performers != ''")
+        ).all()
+
+    names: set[str] = set()
+    for (performers,) in rows:
+        for name in performers.split("/"):
+            name = name.strip()
+            if name:
+                names.add(name)
+
+    q_norm = q.strip().lower()
+    matches = [n for n in names if q_norm in n.lower()] if q_norm else sorted(names)
+    if q_norm:
+        matches.sort(key=lambda n: (not n.lower().startswith(q_norm), n))
+    return {"results": matches[:limit]}

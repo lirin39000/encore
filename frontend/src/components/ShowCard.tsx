@@ -1,5 +1,4 @@
 import { useState, type CSSProperties } from 'react'
-import { Link } from 'react-router-dom'
 import type { Show } from '../api/types'
 import { theme, fontSerif, fontSans } from '../theme/theme'
 import { pickFallbackGradient } from '../theme/fallbackGradients'
@@ -41,15 +40,9 @@ export default function ShowCard({ show }: ShowCardProps) {
     toggleFavorite.mutate({ showId: show.id, isFavorite })
   }
 
-  const venueLine = (linkStyle: CSSProperties) => (
+  const venueLine = () => (
     <>
-      {show.venue_id ? (
-        <Link to={`/venue/${show.venue_id}`} style={linkStyle}>
-          {show.site_name}
-        </Link>
-      ) : (
-        <span>{show.site_name}</span>
-      )}
+      <span>{show.site_name}</span>
       <span>· {show.city_name}</span>
     </>
   )
@@ -127,7 +120,7 @@ export default function ShowCard({ show }: ShowCardProps) {
             </div>
             <div style={{ fontFamily: fontSans, fontSize: 12, color: 'rgba(242,236,225,0.75)' }}>{show.show_time}</div>
             <div style={{ fontFamily: fontSans, fontSize: 12, color: 'rgba(242,236,225,0.75)', display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-              {venueLine({ color: 'inherit', textDecoration: 'underline', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' })}
+              {venueLine()}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
               <span style={{ fontFamily: fontSans, fontSize: 17, fontWeight: 700, color: '#E0664A' }}>{show.price}</span>
@@ -291,7 +284,7 @@ export default function ShowCard({ show }: ShowCardProps) {
             <div style={clampedSubTextStyle}>{formatPerformers(show.performers)}</div>
             <div style={subTextStyle}>{show.show_time}</div>
             <div style={{ ...subTextStyle, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              {venueLine({ color: 'inherit', textDecoration: 'underline' })}
+              {venueLine()}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
               <span style={{ fontFamily: fontSans, fontSize: 18, fontWeight: 700, color: '#E0664A' }}>

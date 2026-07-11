@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { theme, fontSans } from '../theme/theme'
 import { useAuthStore } from '../store/auth'
 import {
   useFollowedArtists, useAddFollowedArtist, useRemoveFollowedArtist,
   useFavorites,
 } from '../queries/me'
+import { useSearchArtists } from '../queries/shows'
+import { useClickOutside } from '../hooks/useClickOutside'
 import ShowCard from '../components/ShowCard'
 
 type Tab = 'artists' | 'favorites'
@@ -12,7 +14,11 @@ type Tab = 'artists' | 'favorites'
 export default function Mine() {
   const [tab, setTab] = useState<Tab>('artists')
   const [addInput, setAddInput] = useState('')
+  const [debouncedInput, setDebouncedInput] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const { user, logout } = useAuthStore()
+  const searchBoxRef = useRef<HTMLDivElement>(null)
+  useClickOutside(searchBoxRef, () => setShowSuggestions(false), showSuggestions)
 
   const loggedIn = !!user
   const openLoginModal = useAuthStore((s) => s.openLoginModal)
@@ -20,6 +26,24 @@ export default function Mine() {
   const { data: favoritesData } = useFavorites(loggedIn && tab === 'favorites')
   const addArtist = useAddFollowedArtist()
   const removeArtist = useRemoveFollowedArtist()
+  const { data: suggestData } = useSearchArtists(debouncedInput)
+  const suggestions = suggestData?.results ?? []
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedInput(addInput), 250)
+    return () => clearTimeout(timer)
+  }, [addInput])
+
+  const handleAdd = (name: string) => {
+    if (!loggedIn) {
+      openLoginModal()
+      return
+    }
+    const trimmed = name.trim()
+    if (!trimmed) return
+    addArtist.mutate(trimmed, { onSuccess: () => setAddInput('') })
+    setShowSuggestions(false)
+  }
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'artists', label: '关注艺人' },
@@ -75,37 +99,54 @@ export default function Mine() {
 
       {tab === 'artists' && (
         <div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <input
-              value={addInput}
-              onChange={(e) => setAddInput(e.target.value)}
-              placeholder="输入艺人名添加关注"
-              style={{
-                flex: 1, minWidth: 0, padding: '10px 14px', border: `1px solid ${theme.border}`, borderRadius: 10,
-                fontSize: 16, outline: 'none', background: theme.subtle, color: theme.text, fontFamily: fontSans,
-              }}
-            />
-            <button
-              onClick={() => {
-                if (!loggedIn) {
-                  openLoginModal()
-                  return
-                }
-                if (addInput.trim()) {
-                  addArtist.mutate(addInput.trim())
-                  setAddInput('')
-                }
-              }}
-              style={{
-                flexShrink: 0, background: theme.gold, color: '#FFFFFF', border: 'none', borderRadius: 10,
-                padding: '10px 18px', fontSize: 13, cursor: 'pointer',
-              }}
-            >
-              添加
-            </button>
+          <div ref={searchBoxRef} style={{ position: 'relative', marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={addInput}
+                onChange={(e) => setAddInput(e.target.value)}
+                onFocus={() => setShowSuggestions(true)}
+                placeholder="搜索艺人名添加关注"
+                style={{
+                  flex: 1, minWidth: 0, padding: '10px 14px', border: `1px solid ${theme.border}`, borderRadius: 10,
+                  fontSize: 16, outline: 'none', background: theme.subtle, color: theme.text, fontFamily: fontSans,
+                }}
+              />
+              <button
+                onClick={() => handleAdd(addInput)}
+                disabled={addArtist.isPending}
+                style={{
+                  flexShrink: 0, background: theme.gold, color: '#FFFFFF', border: 'none', borderRadius: 10,
+                  padding: '10px 18px', fontSize: 13, cursor: 'pointer', opacity: addArtist.isPending ? 0.6 : 1,
+                }}
+              >
+                {addArtist.isPending ? '添加中...' : '添加'}
+              </button>
+            </div>
+            {showSuggestions && suggestions.length > 0 && (
+              <div
+                style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 6, zIndex: 10,
+                  background: theme.panel, border: `1px solid ${theme.border}`, borderRadius: 10,
+                  boxShadow: '0 14px 30px rgba(42,35,32,0.25)', maxHeight: 260, overflowY: 'auto',
+                }}
+              >
+                {suggestions.map((name) => (
+                  <div
+                    key={name}
+                    onClick={() => handleAdd(name)}
+                    style={{
+                      padding: '10px 14px', fontSize: 14, color: theme.text, cursor: 'pointer',
+                      borderBottom: `1px solid ${theme.border}`,
+                    }}
+                  >
+                    {name}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div style={{ fontSize: 12, color: theme.textSec }}>
-            请注意输入乐队或艺人在秀动的官方名称（比如 Chinese Football 不能添加成"国足"），不然可能搜不到对应的演出
+            搜索结果来自我们已抓到过的演出艺人名单，搜不到的话说明还没抓到过这个艺人的演出，也可以直接手动输入完整艺人名添加（注意用秀动官方名称，比如 Chinese Football 不能添加成"国足"）
           </div>
 
           <div style={{ marginTop: 16 }}>

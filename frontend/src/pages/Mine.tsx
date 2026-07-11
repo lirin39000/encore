@@ -146,7 +146,7 @@ export default function Mine() {
             )}
           </div>
           <div style={{ fontSize: 12, color: theme.textSec }}>
-            输入后等待几秒输入框下方可能检索到相关乐队/艺人，也可以直接手动输入完整乐队/艺人名称添加（注意用秀动官方名称，比如 Chinese Football 不能添加成"国足"，否则可能查找不成功）
+            输入后等待几秒输入框下方可能检索到相关乐队/艺人，也可以直接手动输入完整乐队/艺人名称添加（注意用官方名称，比如 Chinese Football 不能添加成"国足"，否则可能查找不成功）
           </div>
 
           <div style={{ marginTop: 16 }}>
@@ -206,6 +206,10 @@ export default function Mine() {
           )}
         </div>
       )}
+
+      <div style={{ textAlign: 'center', fontSize: 12, color: theme.textSec, marginTop: 32 }}>
+        有问题或建议欢迎反馈至 lirin3900@gmail.com ╮(╯▽╰)╭
+      </div>
     </div>
   )
 }

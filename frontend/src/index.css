@@ -2,6 +2,10 @@
   box-sizing: border-box;
 }
 
+html, body {
+  background-color: #1B1512;
+}
+
 body {
   margin: 0;
   font-family: 'Noto Sans SC', sans-serif;

@@ -1,0 +1,15 @@
+{
+  "miniprogramRoot": "dist/",
+  "projectname": "miniprogram",
+  "description": "Encore 安可 微信小程序",
+  "appid": "wx907dd8c0d3d065e0",
+  "setting": {
+    "urlCheck": true,
+    "es6": false,
+    "postcss": false,
+    "minified": false
+  },
+  "compileType": "miniprogram",
+  "libVersion": "",
+  "condition": {}
+}

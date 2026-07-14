@@ -1,0 +1,9 @@
+{
+  "name": "apiProxy",
+  "version": "1.0.0",
+  "description": "把小程序的请求转发给 Railway 上的现有后端(不存数据，纯中转)",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

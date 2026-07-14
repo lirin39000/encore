@@ -3,8 +3,7 @@ import Taro, { useLaunch } from '@tarojs/taro'
 
 import './app.scss'
 
-// TODO: 开通云开发之后，把这里换成真实的环境 ID(在云开发控制台首页能看到)
-const CLOUD_ENV_ID = 'REPLACE_WITH_REAL_ENV_ID'
+const CLOUD_ENV_ID = 'cloud1-d9gwsf1jq9b490005'
 
 function App({ children }: PropsWithChildren<any>) {
   useLaunch(() => {

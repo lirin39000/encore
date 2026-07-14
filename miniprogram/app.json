@@ -1,6 +1,7 @@
 {
   "pages": [
-    "pages/index/index"
+    "pages/index/index",
+    "pages/mine/mine"
   ],
   "window": {
     "backgroundTextStyle": "light",
@@ -8,6 +9,22 @@
     "navigationBarTitleText": "Choose Live?!",
     "navigationBarTextStyle": "white",
     "backgroundColor": "#1B1512"
+  },
+  "tabBar": {
+    "color": "#B8A99A",
+    "selectedColor": "#C4472E",
+    "backgroundColor": "#1B1512",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "推荐流"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的"
+      }
+    ]
   },
   "sitemapLocation": "sitemap.json",
   "cloud": true

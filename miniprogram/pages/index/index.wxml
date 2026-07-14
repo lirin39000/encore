@@ -1,15 +1,108 @@
-<view class="index">
+<view class="page">
+  <view class="topbar">
+    <input
+      class="search-input"
+      placeholder="搜索艺人、场馆或演出"
+      value="{{searchInput}}"
+      bindinput="onSearchInput"
+    />
+  </view>
+
+  <view class="toolbar">
+    <view class="pill {{scope === 'followed' ? 'pill-active' : ''}}" bindtap="toggleScope">我关注的艺人</view>
+    <view class="pill" bindtap="openFilterPanel">
+      筛选<block wx:if="{{activeFilterCount > 0}}"> ({{activeFilterCount}})</block>
+    </view>
+    <view class="pill" bindtap="toggleSort">排序：{{sortBy === 'time' ? '时间' : '价格'}}</view>
+  </view>
+
+  <view wx:if="{{cityNames.length > 0}}" class="city-chips">
+    <view wx:for="{{cityNames}}" wx:key="*this" class="chip">
+      {{item}}
+      <text class="chip-remove" data-name="{{item}}" bindtap="removeCity">×</text>
+    </view>
+  </view>
+
   <view wx:if="{{loading}}" class="status">加载中...</view>
   <view wx:elif="{{error}}" class="status">{{error}}</view>
   <view wx:elif="{{shows.length === 0}}" class="status">暂无演出</view>
+
   <view wx:for="{{shows}}" wx:key="_id" class="card">
     <image wx:if="{{item.poster_url}}" class="poster" src="{{item.poster_url}}" mode="aspectFill" />
     <view class="info">
-      <view class="title">{{item.title}}</view>
+      <view class="row-top">
+        <view class="title">{{item.title}}</view>
+        <view class="heart {{item.isFavorite ? 'heart-active' : ''}}" data-show="{{item}}" catchtap="toggleFavorite">
+          {{item.isFavorite ? '♥' : '♡'}}
+        </view>
+      </view>
       <view class="sub">{{item.performers || '艺人待定'}}</view>
-      <view class="sub">{{item.show_time}} {{item.weekdayLabel}}</view>
+      <view class="sub">
+        {{item.show_time}}
+        <text wx:if="{{item.weekday !== null}}"> 周{{['一','二','三','四','五','六','日'][item.weekday]}}</text>
+      </view>
       <view class="sub">{{item.site_name}} · {{item.city_name}}</view>
       <view class="price">{{item.price}}</view>
     </view>
+  </view>
+
+  <view wx:if="{{loadingMore}}" class="status">加载中...</view>
+  <view wx:if="{{!hasMore && shows.length > 0}}" class="status">没有更多了</view>
+
+  <!-- 筛选面板 -->
+  <view wx:if="{{filterPanelOpen}}" class="overlay" bindtap="closeFilterPanel">
+    <view class="sheet" catchtap="noop">
+      <view class="sheet-title">位置</view>
+      <view class="city-chips">
+        <view wx:for="{{cityNames}}" wx:key="*this" class="chip">
+          {{item}}
+          <text class="chip-remove" data-name="{{item}}" bindtap="removeCity">×</text>
+        </view>
+        <view class="add-city-btn" bindtap="openCityPicker">+ 添加城市</view>
+      </view>
+
+      <view class="sheet-title">档期（每周有空的时间）</view>
+      <view class="weekday-row">
+        <view
+          wx:for="{{weekdayOptions}}"
+          wx:key="key"
+          class="weekday-circle {{freeWeekdays.indexOf(item.key) > -1 ? 'weekday-active' : ''}}"
+          data-day="{{item.key}}"
+          bindtap="toggleWeekday"
+        >
+          {{item.label}}
+        </view>
+      </view>
+
+      <view class="sheet-title">价位上限 ¥{{maxPrice}}</view>
+      <slider min="50" max="{{maxPriceCeiling}}" step="10" value="{{maxPrice}}" bindchange="onPriceChange" activeColor="#C4472E" />
+
+      <button class="confirm-btn" bindtap="closeFilterPanel">确定</button>
+    </view>
+  </view>
+
+  <!-- 城市选择 -->
+  <view wx:if="{{cityPickerOpen}}" class="city-picker">
+    <view class="city-picker-header">
+      <input class="search-input" placeholder="搜索城市" value="{{citySearch}}" bindinput="onCitySearchInput" />
+      <text class="cancel-btn" bindtap="closeCityPicker">取消</text>
+    </view>
+    <scroll-view scroll-y class="city-picker-body">
+      <block wx:for="{{cityGroups}}" wx:key="letter" wx:for-item="group">
+        <view class="city-letter">{{group.letter}}</view>
+        <view
+          wx:for="{{group.cities}}"
+          wx:key="code"
+          wx:for-item="city"
+          hidden="{{citySearch && city.name.indexOf(citySearch) === -1}}"
+          class="city-row"
+          data-name="{{city.name}}"
+          bindtap="toggleCity"
+        >
+          <text>{{city.name}}</text>
+          <text class="city-check">{{cityNames.indexOf(city.name) > -1 ? '✓' : ''}}</text>
+        </view>
+      </block>
+    </scroll-view>
   </view>
 </view>

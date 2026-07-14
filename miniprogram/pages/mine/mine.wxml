@@ -1,0 +1,54 @@
+<view class="page">
+  <view class="tabs">
+    <view class="tab {{tab === 'artists' ? 'tab-active' : ''}}" data-tab="artists" bindtap="switchTab">关注艺人</view>
+    <view class="tab {{tab === 'favorites' ? 'tab-active' : ''}}" data-tab="favorites" bindtap="switchTab">收藏的演出</view>
+  </view>
+
+  <view wx:if="{{tab === 'artists'}}" class="section">
+    <view class="add-row">
+      <input
+        class="add-input"
+        placeholder="搜索艺人名添加关注"
+        value="{{addInput}}"
+        bindinput="onAddInput"
+        bindfocus="onAddInput"
+      />
+      <button class="add-btn" bindtap="addArtist">添加</button>
+    </view>
+
+    <view wx:if="{{showSuggestions && suggestions.length > 0}}" class="suggestions">
+      <view wx:for="{{suggestions}}" wx:key="*this" class="suggestion-item" data-name="{{item}}" bindtap="addArtist">
+        {{item}}
+      </view>
+    </view>
+
+    <view class="hint">输入后等待几秒可能检索到相关乐队/艺人，也可以直接手动输入完整艺人名添加</view>
+
+    <view wx:if="{{loadingArtists}}" class="status">加载中...</view>
+    <view wx:elif="{{artists.length === 0}}" class="status">还没有关注的艺人</view>
+    <view wx:for="{{artists}}" wx:key="_id" class="list-row">
+      <view class="list-row-text">★ {{item.artist_name}}</view>
+      <view class="remove-btn" data-id="{{item._id}}" bindtap="removeArtist">移除</view>
+    </view>
+  </view>
+
+  <view wx:if="{{tab === 'favorites'}}" class="section">
+    <view wx:if="{{loadingFavorites}}" class="status">加载中...</view>
+    <view wx:elif="{{favorites.length === 0}}" class="status">还没有收藏的演出</view>
+    <view wx:for="{{favorites}}" wx:key="id" class="card">
+      <image wx:if="{{item.poster_url}}" class="poster" src="{{item.poster_url}}" mode="aspectFill" />
+      <view class="info">
+        <view class="row-top">
+          <view class="title">{{item.title}}</view>
+          <view class="remove-btn" data-id="{{item.id}}" bindtap="removeFavorite">移除</view>
+        </view>
+        <view class="sub">{{item.performers || '艺人待定'}}</view>
+        <view class="sub">{{item.show_time}}</view>
+        <view class="sub">{{item.site_name}} · {{item.city_name}}</view>
+        <view class="price">{{item.price}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="footer">有问题或建议欢迎反馈至 lirin3900@gmail.com ╮(╯▽╰)╭</view>
+</view>

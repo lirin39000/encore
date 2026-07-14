@@ -95,9 +95,11 @@ def copy_table(sqlite_conn, pg_engine, table, columns):
         sql = text(f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT ({pk}) DO UPDATE SET {set_clause}")
     else:
         sql = text(f"INSERT INTO {table} ({col_list}) VALUES ({placeholders}) ON CONFLICT DO NOTHING")
+    # 挨行 execute() 对数据库来说是一行一次网络往返，shows 表几千行就是几千次往返，
+    # Supabase 又在印度、延迟本来就不低。传一整个列表进去让驱动走批量执行，能差很多
+    params = [dict(zip(columns, row)) for row in rows]
     with pg_engine.begin() as conn:
-        for row in rows:
-            conn.execute(sql, dict(zip(columns, row)))
+        conn.execute(sql, params)
     print(f"  {table}: 已搬 {len(rows)} 行")
 
 

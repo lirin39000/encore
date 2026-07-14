@@ -19,6 +19,7 @@ PYTHON = sys.executable
 STEPS = [
     ("准备本地数据库表结构", "migrate_schema.py"),
     ("抓取最新演出数据", "xiudong_sync.py"),
+    ("清理非音乐类演出", "clean_non_music_shows.py"),
     ("解析价格/时间字段", "normalize_shows.py"),
     ("同步到 Supabase 云端", "migrate_to_postgres.py"),
 ]

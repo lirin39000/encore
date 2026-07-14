@@ -4,7 +4,7 @@ import './index.scss'
 export default function Index() {
   return (
     <View className='index'>
-      <Text>Encore 安可</Text>
+      <Text>Choose Live?!</Text>
     </View>
   )
 }

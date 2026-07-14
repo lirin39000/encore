@@ -118,7 +118,7 @@ export default function LoginModal({ onClose }: LoginModalProps) {
           padding: 24,
         }}
       >
-        <div style={{ fontFamily: fontSerif, fontSize: 20, fontWeight: 700, marginBottom: 20, color: '#FFFFFF' }}>登录 Encore</div>
+        <div style={{ fontFamily: fontSerif, fontSize: 20, fontWeight: 700, marginBottom: 20, color: '#FFFFFF' }}>登录 Choose Live?!</div>
 
         <div style={{ marginBottom: 12 }}>
           <input

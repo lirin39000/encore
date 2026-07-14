@@ -4,3 +4,4 @@ dist/
 .rn_temp/
 .swc/
 temp/
+project.private.config.json

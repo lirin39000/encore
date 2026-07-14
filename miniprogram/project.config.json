@@ -1,15 +1,40 @@
 {
   "miniprogramRoot": "dist/",
   "projectname": "miniprogram",
-  "description": "Encore 安可 微信小程序",
+  "description": "Choose Live?! 微信小程序",
   "appid": "wx907dd8c0d3d065e0",
   "setting": {
     "urlCheck": true,
     "es6": false,
     "postcss": false,
-    "minified": false
+    "minified": false,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "enhance": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
   },
   "compileType": "miniprogram",
   "libVersion": "",
-  "condition": {}
+  "condition": {},
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "editorSetting": {}
 }

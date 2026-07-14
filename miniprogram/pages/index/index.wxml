@@ -1,0 +1,15 @@
+<view class="index">
+  <view wx:if="{{loading}}" class="status">加载中...</view>
+  <view wx:elif="{{error}}" class="status">{{error}}</view>
+  <view wx:elif="{{shows.length === 0}}" class="status">暂无演出</view>
+  <view wx:for="{{shows}}" wx:key="_id" class="card">
+    <image wx:if="{{item.poster_url}}" class="poster" src="{{item.poster_url}}" mode="aspectFill" />
+    <view class="info">
+      <view class="title">{{item.title}}</view>
+      <view class="sub">{{item.performers || '艺人待定'}}</view>
+      <view class="sub">{{item.show_time}} {{item.weekdayLabel}}</view>
+      <view class="sub">{{item.site_name}} · {{item.city_name}}</view>
+      <view class="price">{{item.price}}</view>
+    </view>
+  </view>
+</view>

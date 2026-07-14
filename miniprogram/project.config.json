@@ -1,5 +1,4 @@
 {
-  "miniprogramRoot": "dist/",
   "cloudfunctionRoot": "cloudfunctions/",
   "projectname": "miniprogram",
   "description": "Choose Live?! 微信小程序",

@@ -59,6 +59,51 @@ async function runPool(items, worker, concurrency) {
   return { okCount, failures }
 }
 
+// artists 集合就是把 performers 字段(用 / 分隔多个艺人)拆开去重，
+// 给"关注艺人"那个搜索建议用，不用自定义 doc id(艺人名可能带一些
+// doc id 不允许的字符)，改成"先查一遍已有的名字，只 add() 没见过的"，
+// 避免重复插入
+async function syncArtists(records) {
+  const nameSet = new Set()
+  for (const r of records) {
+    if (!r.performers) continue
+    for (const raw of r.performers.split('/')) {
+      const name = raw.trim()
+      if (name) nameSet.add(name)
+    }
+  }
+
+  const existing = new Set()
+  const PAGE_SIZE = 1000
+  let skip = 0
+  while (true) {
+    const res = await db.collection('artists').skip(skip).limit(PAGE_SIZE).field({ name: true }).get()
+    res.data.forEach((doc) => existing.add(doc.name))
+    if (res.data.length < PAGE_SIZE) break
+    skip += PAGE_SIZE
+  }
+
+  const toAdd = [...nameSet].filter((name) => !existing.has(name))
+  console.log(`艺人名单：共 ${nameSet.size} 个，已有 ${existing.size} 个，新增 ${toAdd.length} 个`)
+
+  const { okCount, failures } = await runPool(
+    toAdd,
+    async (name) => {
+      try {
+        await db.collection('artists').add({ data: { name } })
+        return { ok: true }
+      } catch (e) {
+        return { ok: false, id: name, message: e.message }
+      }
+    },
+    CONCURRENCY
+  )
+  console.log(`艺人名单同步完成：新增成功 ${okCount}，失败 ${failures.length}`)
+  if (failures.length > 0) {
+    console.log('失败示例(最多显示5条):', failures.slice(0, 5))
+  }
+}
+
 async function main() {
   const records = JSON.parse(fs.readFileSync(EXPORT_PATH, 'utf-8'))
   console.log(`读到 ${records.length} 条记录，开始同步到云数据库 shows 集合...`)
@@ -69,6 +114,8 @@ async function main() {
   if (failures.length > 0) {
     console.log('失败示例(最多显示5条):', failures.slice(0, 5))
   }
+
+  await syncArtists(records)
 }
 
 main().catch((e) => {

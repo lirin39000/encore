@@ -17,9 +17,17 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Python dependencies
         working-directory: backend
         run: pip install -r requirements.txt
+
+      - name: Install wx cloud sync dependencies
+        working-directory: backend/scraper/sync_to_wx_cloud
+        run: npm install
 
       - name: Run daily pipeline
         working-directory: backend/scraper
@@ -28,4 +36,7 @@ jobs:
           ALIYUN_ACCESS_KEY_SECRET: ${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
           AMAP_WEB_SERVICE_KEY: ${{ secrets.AMAP_WEB_SERVICE_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          WX_CLOUD_ENV: "cloud1-d9gwsf1jq9b490005"
+          TENCENT_SECRET_ID: ${{ secrets.TENCENT_SECRET_ID }}
+          TENCENT_SECRET_KEY: ${{ secrets.TENCENT_SECRET_KEY }}
         run: python daily_pipeline.py

@@ -6,6 +6,7 @@ backend/venv/
 # 数据库（每天自动更新的数据，不是源代码）
 *.db
 backend/scraper/sync_log.txt
+backend/scraper/shows_export.json
 
 # 环境变量 / 密钥
 .env

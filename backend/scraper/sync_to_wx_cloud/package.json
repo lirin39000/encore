@@ -1,0 +1,10 @@
+{
+  "name": "sync-to-wx-cloud",
+  "version": "1.0.0",
+  "private": true,
+  "description": "把 shows_export.json 同步进微信云开发的云数据库，供小程序直接读取",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

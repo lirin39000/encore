@@ -13,6 +13,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 PYTHON = sys.executable
 
 STEPS = [
+    ("准备本地数据库表结构", "migrate_schema.py"),
     ("抓取最新演出数据", "xiudong_sync.py"),
     ("解析价格/时间字段", "normalize_shows.py"),
     ("场馆经纬度回填", "geocode_venues.py"),

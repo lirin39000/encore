@@ -16,9 +16,13 @@ DB_PATH = SCRIPT_DIR / "xiudong.db"
 # 把 backend/ 目录加进 sys.path，这样才能 import app.xxx
 sys.path.insert(0, str(SCRIPT_DIR.parent))
 
-from sqlmodel import SQLModel  # noqa: E402
-from app.db import engine  # noqa: E402
+from sqlmodel import SQLModel, create_engine  # noqa: E402
 from app import models  # noqa: E402  (import 触发表定义注册到 SQLModel.metadata)
+
+# 这个脚本只负责准备本地这份 xiudong.db 暂存文件的表结构，不能用 app.db.engine——
+# 那个会在 DATABASE_URL 有值时指向线上 Postgres，不小心把 venues/users 这些表建到线上库里，
+# 而 xiudong.db 这边反而还是空的（后面的抓取脚本直接拿 sqlite3 连这个文件，会找不到表）
+engine = create_engine(f"sqlite:///{DB_PATH}")
 
 NEW_SHOW_COLUMNS = [
     ("poster_url", "TEXT"),

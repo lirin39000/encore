@@ -43,6 +43,23 @@ NEW_SHOW_INDICES = [
 
 
 def add_show_columns(conn):
+    # 全新的数据库文件(比如 CI 每次都是从零开始)这时候 shows 表还不存在，ALTER TABLE 会报错——
+    # 先按 xiudong_sync.py 里同样的基础表结构建一次(已存在则不受影响)，后面加字段才有地方加
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS shows (
+            id INTEGER PRIMARY KEY,
+            title TEXT,
+            performers TEXT,
+            price TEXT,
+            show_time TEXT,
+            site_name TEXT,
+            city_name TEXT,
+            city_code TEXT,
+            sold_out INTEGER,
+            last_seen_at TEXT DEFAULT (datetime('now', 'localtime'))
+        )
+    """)
+
     for col, coltype in NEW_SHOW_COLUMNS:
         try:
             conn.execute(f"ALTER TABLE shows ADD COLUMN {col} {coltype}")

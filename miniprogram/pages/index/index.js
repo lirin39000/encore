@@ -41,7 +41,7 @@ Page({
     freeWeekdays: [],
     maxPrice: MAX_PRICE_CEILING,
     maxPriceCeiling: MAX_PRICE_CEILING,
-    weekdayOptions: WEEKDAYS.map((d) => ({ key: d, label: WEEKDAY_LABELS[d] })),
+    weekdayOptions: WEEKDAYS.map((d) => ({ key: d, label: WEEKDAY_LABELS[d], active: false })),
 
     filterTab: 'location', // location | schedule | price
     filterPanelOpen: false,
@@ -78,8 +78,19 @@ Page({
         maxPrice: cached.maxPrice || MAX_PRICE_CEILING,
       })
       this.updateActiveFilterCount()
+      this.syncWeekdayOptions()
     }
     this.loadFavoriteIds().then(() => this.loadShows())
+  },
+
+  // 星期几圆圈是否高亮，算成 weekdayOptions 每一项自己的 active 字段，
+  // 不在 WXML 里现算 indexOf——两种写法逻辑上等价，这样写只是更直接、更好排查
+  syncWeekdayOptions() {
+    const weekdayOptions = this.data.weekdayOptions.map((opt) => ({
+      ...opt,
+      active: this.data.freeWeekdays.includes(opt.key),
+    }))
+    this.setData({ weekdayOptions })
   },
 
   onShow() {
@@ -249,17 +260,27 @@ Page({
   // 算出要往左边挪多少，避免被裁掉——用 rpx 单位是因为小程序的 rpx 本来就是按
   // "750rpx = 当前屏幕宽度"这个比例自动换算的，不用像网页那样自己再拿 px 换算一遍
   openFilterPanel() {
-    this.setData({ filterPanelOpen: true }, () => {
-      const windowWidth = wx.getWindowInfo().windowWidth
-      wx.createSelectorQuery()
-        .select('.filter-panel')
-        .boundingClientRect((rect) => {
-          if (!rect) return
-          const overflow = rect.left + rect.width - (windowWidth - 8)
-          this.setData({ filterPanelShift: overflow > 0 ? overflow : 0 })
-        })
-        .exec()
+    this.setData({ filterPanelOpen: true, filterPanelShift: 0 }, () => {
+      // setData 的回调只保证"数据已经发给渲染层"，不保证渲染层已经排好版——
+      // 小程序逻辑层和渲染层是两个线程，真机上偶尔会有量早了、量到还没定型的
+      // 布局的情况(表现为"有时候面板位置偏右没修正")。用 wx.nextTick 让个一拍，
+      // 再等一个很短的延时兜底，基本能保证量到的是渲染层真正定型之后的位置
+      wx.nextTick(() => {
+        setTimeout(() => this.measureFilterPanelShift(), 30)
+      })
     })
+  },
+
+  measureFilterPanelShift() {
+    const windowWidth = wx.getWindowInfo().windowWidth
+    wx.createSelectorQuery()
+      .select('.filter-panel')
+      .boundingClientRect((rect) => {
+        if (!rect) return
+        const overflow = rect.left + rect.width - (windowWidth - 8)
+        this.setData({ filterPanelShift: overflow > 0 ? overflow : 0 })
+      })
+      .exec()
   },
 
   // 网页版 FilterPanel 每次点/拖都是直接改全局筛选状态、立刻触发重新查询，
@@ -284,7 +305,10 @@ Page({
     const list = this.data.freeWeekdays.includes(day)
       ? this.data.freeWeekdays.filter((d) => d !== day)
       : [...this.data.freeWeekdays, day]
-    this.setData({ freeWeekdays: list }, () => this.applyFilters())
+    this.setData({ freeWeekdays: list }, () => {
+      this.syncWeekdayOptions()
+      this.applyFilters()
+    })
   },
 
   onPriceChange(e) {

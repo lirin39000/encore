@@ -64,7 +64,7 @@
                   <view
                     wx:for="{{weekdayOptions}}"
                     wx:key="key"
-                    class="weekday-circle {{freeWeekdays.indexOf(item.key) > -1 ? 'weekday-active' : ''}}"
+                    class="weekday-circle {{item.active ? 'weekday-active' : ''}}"
                     data-day="{{item.key}}"
                     bindtap="toggleWeekday"
                   >

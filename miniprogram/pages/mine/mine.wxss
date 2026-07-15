@@ -1,7 +1,11 @@
 @import '../index/index.wxss';
 
 .page {
-  padding: 40rpx 48rpx 80rpx;
+  padding: 40rpx 0 80rpx;
+}
+
+.page-padded {
+  padding: 0 48rpx;
 }
 
 .tabs {

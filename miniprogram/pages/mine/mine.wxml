@@ -1,10 +1,12 @@
 <view class="page">
-  <view class="tabs">
-    <view class="tab {{tab === 'artists' ? 'tab-active' : ''}}" data-tab="artists" bindtap="switchTab">关注艺人</view>
-    <view class="tab {{tab === 'favorites' ? 'tab-active' : ''}}" data-tab="favorites" bindtap="switchTab">收藏的演出</view>
+  <view class="page-padded">
+    <view class="tabs">
+      <view class="tab {{tab === 'artists' ? 'tab-active' : ''}}" data-tab="artists" bindtap="switchTab">关注艺人</view>
+      <view class="tab {{tab === 'favorites' ? 'tab-active' : ''}}" data-tab="favorites" bindtap="switchTab">收藏的演出</view>
+    </view>
   </view>
 
-  <view wx:if="{{tab === 'artists'}}" class="section">
+  <view wx:if="{{tab === 'artists'}}" class="section page-padded">
     <view class="add-row">
       <input
         class="add-input"
@@ -34,9 +36,9 @@
     </view>
   </view>
 
-  <view wx:if="{{tab === 'favorites'}}" class="section">
-    <view wx:if="{{loadingFavorites}}" class="status">加载中...</view>
-    <view wx:elif="{{favorites.length === 0}}" class="status">还没有收藏的演出</view>
+  <view wx:if="{{tab === 'favorites'}}">
+    <view wx:if="{{loadingFavorites}}" class="status page-padded">加载中...</view>
+    <view wx:elif="{{favorites.length === 0}}" class="status page-padded">还没有收藏的演出</view>
 
     <view wx:for="{{favorites}}" wx:key="_id" class="card">
       <view class="card-blur" style="background-image:{{item.posterBg}};"></view>
@@ -70,5 +72,7 @@
     </view>
   </view>
 
-  <view class="footer">有问题或建议欢迎反馈至 lirin3900@gmail.com ╮(╯▽╰)╭</view>
+  <view class="page-padded">
+    <view class="footer">有问题或建议欢迎反馈至 lirin3900@gmail.com ╮(╯▽╰)╭</view>
+  </view>
 </view>

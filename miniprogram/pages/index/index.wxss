@@ -1,39 +1,58 @@
 .page {
-  padding-bottom: 40rpx;
+  padding-top: 32rpx;
+  padding-bottom: 80rpx;
 }
 
-.topbar {
-  padding: 24rpx 24rpx 0;
+.header-inner {
+  padding: 0 48rpx;
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 36rpx;
+}
+
+.logo {
+  font-size: 36rpx;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+  color: #F2ECE1;
+}
+
+.search-wrap {
+  margin-bottom: 28rpx;
 }
 
 .search-input {
   box-sizing: border-box;
   width: 100%;
-  padding: 20rpx 24rpx;
-  border-radius: 16rpx;
+  padding: 26rpx 36rpx;
+  border-radius: 24rpx;
   background: #2A211C;
   border: 1rpx solid rgba(255, 255, 255, 0.14);
-  font-size: 28rpx;
+  font-size: 32rpx;
   color: #F2ECE1;
 }
 
 .toolbar {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  padding: 20rpx 24rpx;
-  overflow-x: auto;
-  white-space: nowrap;
+  gap: 20rpx;
+  margin-bottom: 44rpx;
 }
 
 .pill {
   flex-shrink: 0;
-  font-size: 24rpx;
-  padding: 14rpx 24rpx;
-  border-radius: 100rpx;
+  font-size: 26rpx;
+  padding: 18rpx 28rpx;
+  border-radius: 200rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.14);
   background: #2A211C;
   color: #F2ECE1;
+  white-space: nowrap;
 }
 
 .pill-active {
@@ -42,28 +61,49 @@
   color: #FFFFFF;
 }
 
-.city-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-  padding: 0 24rpx 16rpx;
+.filter-anchor {
+  position: relative;
+  flex-shrink: 0;
 }
 
-.chip {
+.click-outside-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.sort-pill {
+  flex-shrink: 0;
+}
+
+.meta-row {
   display: flex;
   align-items: center;
-  gap: 8rpx;
-  font-size: 24rpx;
-  padding: 8rpx 12rpx 8rpx 20rpx;
-  border-radius: 16rpx;
-  background: #2A211C;
-  border: 1rpx solid rgba(255, 255, 255, 0.14);
-  color: #F2ECE1;
+  gap: 16rpx;
+  flex-wrap: wrap;
+  margin-bottom: 24rpx;
 }
 
-.chip-remove {
+.total-text {
+  font-size: 26rpx;
   color: rgba(242, 236, 225, 0.62);
-  padding: 0 6rpx;
+}
+
+.meta-chip {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 24rpx;
+  color: #C4472E;
+  background: #241C17;
+  border: 1rpx solid rgba(255, 255, 255, 0.14);
+  border-radius: 200rpx;
+  padding: 6rpx 12rpx 6rpx 20rpx;
+}
+
+.meta-chip-remove {
+  padding: 0 8rpx;
+  font-weight: 700;
 }
 
 .status {
@@ -74,96 +114,231 @@
   font-size: 26rpx;
 }
 
+/* ---- 演出卡：1:1 移植网页版 ShowCard.tsx 手机行布局 ---- */
+
 .card {
+  position: relative;
+  overflow: hidden;
   display: flex;
-  gap: 20rpx;
-  padding: 20rpx 24rpx;
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.12);
+  align-items: stretch;
+  border-bottom: 1rpx solid rgba(0, 0, 0, 0.25);
+  min-height: 236rpx;
 }
 
-.poster {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 12rpx;
-  flex-shrink: 0;
-  background: #2A211C;
+.card-blur {
+  position: absolute;
+  top: -48rpx;
+  right: -48rpx;
+  bottom: -48rpx;
+  left: -48rpx;
+  background-color: #C4472E;
+  background-size: cover;
+  background-position: center;
+  filter: blur(26px);
+  transform: scale(1.05);
+  z-index: 0;
 }
 
-.info {
+.card-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(20, 15, 12, 0.62);
+}
+
+.card-info {
+  position: relative;
+  z-index: 2;
   flex: 1;
   min-width: 0;
+  padding: 28rpx 20rpx 28rpx 32rpx;
   display: flex;
   flex-direction: column;
-  gap: 8rpx;
+  gap: 10rpx;
+  justify-content: center;
 }
 
-.row-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12rpx;
-}
-
-.title {
-  flex: 1;
+.card-title {
   font-size: 30rpx;
-  font-weight: 600;
+  line-height: 1.4;
   color: #F2ECE1;
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.heart {
-  flex-shrink: 0;
-  font-size: 36rpx;
-  color: rgba(242, 236, 225, 0.5);
-  line-height: 1;
-  padding: 4rpx;
-}
-
-.heart-active {
-  color: #C4472E;
-}
-
-.sub {
+.card-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
   font-size: 24rpx;
   color: rgba(242, 236, 225, 0.75);
 }
 
-.price {
-  font-size: 32rpx;
+.card-star {
+  color: #B8862E;
+  flex-shrink: 0;
+}
+
+.card-performers {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-sub {
+  font-size: 24rpx;
+  color: rgba(242, 236, 225, 0.75);
+}
+
+.card-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4rpx;
+}
+
+.card-price {
+  font-size: 34rpx;
   font-weight: 700;
   color: #E0664A;
 }
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: rgba(0, 0, 0, 0.5);
+.card-detail-link {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #B8862E;
+  flex-shrink: 0;
+}
+
+.card-poster {
+  position: relative;
+  width: 236rpx;
+  flex-shrink: 0;
+  z-index: 2;
+  background-color: #C4472E;
+  background-size: cover;
+  background-position: center;
+}
+
+.sold-out-badge {
+  position: absolute;
+  top: 16rpx;
+  left: 16rpx;
+  background: rgba(42, 35, 32, 0.75);
+  color: #F2ECE1;
+  font-size: 20rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 200rpx;
+}
+
+.heart-btn {
+  position: absolute;
+  bottom: 12rpx;
+  right: 16rpx;
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* ---- 筛选面板：1:1 移植网页版 FilterPanel.tsx(锚定在筛选胶囊下方的毛玻璃面板) ---- */
+
+.filter-panel {
+  position: absolute;
+  top: 88rpx;
+  z-index: 50;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  background: rgba(42, 33, 28, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1rpx solid rgba(255, 255, 255, 0.14);
+  border-radius: 32rpx;
+  box-shadow: 0 16rpx 72rpx rgba(42, 35, 32, 0.4);
+  overflow: hidden;
 }
 
-.sheet {
-  width: 100%;
-  max-height: 80vh;
-  box-sizing: border-box;
-  background: #1B1512;
-  border-radius: 24rpx 24rpx 0 0;
-  padding: 32rpx 24rpx calc(32rpx + env(safe-area-inset-bottom));
+.filter-panel-body {
+  display: flex;
 }
 
-.sheet-title {
-  font-size: 24rpx;
-  color: rgba(242, 236, 225, 0.62);
-  margin: 24rpx 0 16rpx;
+.filter-tabs {
+  display: flex;
+  flex-direction: column;
+  width: 144rpx;
+  flex-shrink: 0;
+  border-right: 1rpx solid rgba(255, 255, 255, 0.14);
+  padding: 16rpx;
 }
 
-.add-city-btn {
-  font-size: 24rpx;
-  padding: 8rpx 20rpx;
-  border-radius: 16rpx;
+.filter-tab {
+  text-align: left;
+  font-size: 26rpx;
+  padding: 24rpx 28rpx;
+  font-weight: 600;
+  border-radius: 20rpx;
+  margin-bottom: 4rpx;
+  color: #F2ECE1;
+}
+
+.filter-tab-active {
   background: #C4472E;
   color: #FFFFFF;
+}
+
+.filter-content {
+  flex: 1;
+  min-width: 0;
+  padding: 32rpx 24rpx;
+}
+
+.filter-label {
+  font-size: 24rpx;
+  color: rgba(242, 236, 225, 0.62);
+  margin-bottom: 20rpx;
+}
+
+.filter-hint {
+  font-size: 24rpx;
+  color: rgba(242, 236, 225, 0.62);
+  margin-top: 20rpx;
+}
+
+.city-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  align-items: center;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 26rpx;
+  padding: 12rpx 20rpx 12rpx 28rpx;
+  border-radius: 16rpx;
+  background: #2A211C;
+  border: 1rpx solid rgba(255, 255, 255, 0.14);
+  color: #F2ECE1;
+}
+
+.chip-remove {
+  color: rgba(242, 236, 225, 0.62);
+}
+
+.add-city-circle {
+  width: 64rpx;
+  height: 64rpx;
+  line-height: 60rpx;
+  text-align: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #C4472E;
+  color: #FFFFFF;
+  font-size: 32rpx;
 }
 
 .weekday-row {
@@ -173,12 +348,14 @@
 }
 
 .weekday-circle {
-  width: 64rpx;
-  height: 64rpx;
-  line-height: 64rpx;
+  width: 60rpx;
+  height: 60rpx;
+  line-height: 60rpx;
   text-align: center;
   border-radius: 50%;
+  flex-shrink: 0;
   font-size: 24rpx;
+  font-weight: 600;
   border: 1rpx solid rgba(255, 255, 255, 0.14);
   background: #2A211C;
   color: #F2ECE1;
@@ -190,12 +367,17 @@
   color: #FFFFFF;
 }
 
-.confirm-btn {
-  margin-top: 32rpx;
+.filter-confirm {
+  padding: 20rpx;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.14);
   background: #C4472E;
   color: #FFFFFF;
-  font-size: 28rpx;
+  text-align: center;
+  font-size: 26rpx;
+  font-weight: 600;
 }
+
+/* ---- 城市选择：1:1 移植网页版 CityPicker.tsx ---- */
 
 .city-picker {
   position: fixed;
@@ -209,27 +391,61 @@
 .city-picker-header {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  padding: 24rpx;
+  gap: 20rpx;
+  padding: 32rpx;
+  flex-shrink: 0;
+}
+
+.city-search-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 20rpx 28rpx;
+  border-radius: 20rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.14);
+  background: #241C17;
+  font-size: 32rpx;
+  color: #F2ECE1;
 }
 
 .cancel-btn {
   flex-shrink: 0;
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: rgba(242, 236, 225, 0.62);
+  white-space: nowrap;
 }
 
 .city-picker-body {
   flex: 1;
-  padding: 0 24rpx;
+}
+
+.city-picker-scroll-inner {
+  padding: 0 80rpx 48rpx 32rpx;
+}
+
+.city-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.done-btn {
+  background: #C4472E;
+  color: #FFFFFF;
+  font-size: 26rpx;
+  font-weight: 700;
+  padding: 12rpx 32rpx;
+  border-radius: 16rpx;
 }
 
 .city-letter {
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 700;
   color: rgba(242, 236, 225, 0.62);
   padding: 12rpx 0;
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.14);
+  margin-top: 16rpx;
 }
 
 .city-row {
@@ -237,12 +453,42 @@
   align-items: center;
   justify-content: space-between;
   font-size: 28rpx;
-  padding: 24rpx 0;
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.12);
   color: #F2ECE1;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.14);
 }
 
-.city-check {
-  color: #C4472E;
-  font-weight: 700;
+.city-plus {
+  width: 44rpx;
+  height: 44rpx;
+  line-height: 40rpx;
+  text-align: center;
+  border-radius: 50%;
+  background: #2A211C;
+  color: rgba(242, 236, 225, 0.62);
+  font-size: 28rpx;
+  flex-shrink: 0;
+}
+
+.city-plus-active {
+  background: #C4472E;
+  color: #FFFFFF;
+}
+
+.letter-index {
+  position: absolute;
+  right: 28rpx;
+  top: 120rpx;
+  bottom: 16rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2rpx;
+}
+
+.letter-index-item {
+  font-size: 20rpx;
+  color: rgba(242, 236, 225, 0.62);
+  text-align: center;
+  padding: 2rpx 8rpx;
 }

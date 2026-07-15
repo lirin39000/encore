@@ -1,0 +1,27 @@
+.tab-bar {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 48rpx;
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background: #1B1512;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.14);
+}
+
+.tab-half {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.tab-pill {
+  font-size: 26rpx;
+  padding: 16rpx 36rpx;
+  border-radius: 200rpx;
+  color: #F2ECE1;
+  font-weight: 600;
+}
+
+.tab-pill-active {
+  background: #C4472E;
+  color: #FFFFFF;
+}

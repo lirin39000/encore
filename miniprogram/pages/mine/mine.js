@@ -1,5 +1,23 @@
+const { pickFallbackGradient } = require('../../utils/fallbackGradients.js')
+const { HEART_ACTIVE, HEART_INACTIVE_MOBILE } = require('../../utils/icons.js')
+
+const WEEKDAY_LABELS = ['一', '二', '三', '四', '五', '六', '日']
+
 function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function formatPerformers(performers) {
+  if (!performers) return '艺人待定'
+  const names = performers.split('/').map((n) => n.trim()).filter(Boolean)
+  if (names.length <= 3) return names.join('/')
+  return `${names.slice(0, 3).join('/')} 等${names.length}组`
+}
+
+function formatShowTime(show) {
+  if (!show.show_time) return ''
+  if (show.weekday === null || show.weekday === undefined) return show.show_time
+  return `${show.show_time} 周${WEEKDAY_LABELS[show.weekday]}`
 }
 
 Page({
@@ -23,6 +41,9 @@ Page({
   },
 
   onShow() {
+    if (typeof this.getTabBar === 'function') {
+      this.getTabBar().setData({ selected: 1 })
+    }
     // 从首页点收藏心形之后切回"我的"，列表要跟着刷新
     if (this.data.tab === 'favorites') {
       this.loadFavorites()
@@ -46,6 +67,17 @@ Page({
     }
   },
 
+  decorateShow(s) {
+    return {
+      ...s,
+      isFavorite: true,
+      heartIcon: HEART_ACTIVE,
+      posterBg: s.poster_url ? `url('${s.poster_url}')` : pickFallbackGradient(s.id),
+      performersText: formatPerformers(s.performers),
+      showTimeText: formatShowTime(s),
+    }
+  },
+
   async loadFavorites() {
     this.setData({ loadingFavorites: true })
     try {
@@ -61,7 +93,7 @@ Page({
       // 按收藏时间倒序排(showsRes 顺序不保证跟 showIds 一致)
       const byId = {}
       showsRes.data.forEach((s) => { byId[s.id] = s })
-      const ordered = showIds.map((id) => byId[id]).filter(Boolean)
+      const ordered = showIds.map((id) => byId[id]).filter(Boolean).map((s) => this.decorateShow(s))
       this.setData({ favorites: ordered, loadingFavorites: false })
     } catch (e) {
       this.setData({ loadingFavorites: false })
@@ -120,19 +152,34 @@ Page({
     }
   },
 
-  async removeFavorite(e) {
-    const showId = e.currentTarget.dataset.id
+  previewPoster(e) {
+    const url = e.currentTarget.dataset.url
+    if (url) wx.previewImage({ urls: [url] })
+  },
+
+  copyDetailLink(e) {
+    const id = e.currentTarget.dataset.id
+    wx.setClipboardData({
+      data: `https://www.showstart.com/event/${id}`,
+      success: () => wx.showToast({ title: '链接已复制，可在浏览器打开', icon: 'none' }),
+    })
+  },
+
+  // 收藏列表里心形一直是实心的，点一下就是取消收藏(跟网页版 ShowCard 逻辑一致，
+  // 收藏/取消收藏统一用同一个心形按钮，不需要另外一个"移除"文字按钮)
+  async toggleFavorite(e) {
+    const show = e.currentTarget.dataset.show
     const previous = this.data.favorites
-    this.setData({ favorites: previous.filter((s) => s.id !== showId) })
+    this.setData({ favorites: previous.filter((s) => s.id !== show.id) })
     try {
       const db = wx.cloud.database()
-      const existing = await db.collection('favorites').where({ show_id: showId }).get()
+      const existing = await db.collection('favorites').where({ show_id: show.id }).get()
       for (const doc of existing.data) {
         await db.collection('favorites').doc(doc._id).remove()
       }
     } catch (e) {
       this.setData({ favorites: previous })
-      wx.showToast({ title: '移除失败，请重试', icon: 'none' })
+      wx.showToast({ title: '操作失败，请重试', icon: 'none' })
     }
   },
 })

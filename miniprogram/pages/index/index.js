@@ -1,4 +1,6 @@
 const cityData = require('../../data/cities.js')
+const { pickFallbackGradient } = require('../../utils/fallbackGradients.js')
+const { HEART_ACTIVE, HEART_INACTIVE_MOBILE } = require('../../utils/icons.js')
 
 const WEEKDAY_LABELS = ['一', '二', '三', '四', '五', '六', '日']
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6]
@@ -9,6 +11,20 @@ function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+// 阵容很长的拼盘演出会把卡片撑得很高，只展示前几个名字+"等N组"，跟网页版 ShowCard.tsx 一致
+function formatPerformers(performers) {
+  if (!performers) return '艺人待定'
+  const names = performers.split('/').map((n) => n.trim()).filter(Boolean)
+  if (names.length <= 3) return names.join('/')
+  return `${names.slice(0, 3).join('/')} 等${names.length}组`
+}
+
+function formatShowTime(show) {
+  if (!show.show_time) return ''
+  if (show.weekday === null || show.weekday === undefined) return show.show_time
+  return `${show.show_time} 周${WEEKDAY_LABELS[show.weekday]}`
+}
+
 Page({
   data: {
     shows: [],
@@ -16,6 +32,7 @@ Page({
     loadingMore: false,
     hasMore: true,
     error: '',
+    total: 0,
 
     searchInput: '',
     scope: 'all', // all | followed
@@ -26,7 +43,10 @@ Page({
     maxPriceCeiling: MAX_PRICE_CEILING,
     weekdayOptions: WEEKDAYS.map((d) => ({ key: d, label: WEEKDAY_LABELS[d] })),
 
+    filterTab: 'location', // location | schedule | price
     filterPanelOpen: false,
+    filterPanelWidth: 300,
+    filterPanelShift: 0,
     cityPickerOpen: false,
     citySearch: '',
     cityGroups: cityData.cityDirectory,
@@ -64,6 +84,9 @@ Page({
   },
 
   onShow() {
+    if (typeof this.getTabBar === 'function') {
+      this.getTabBar().setData({ selected: 0 })
+    }
     // 从"我的"页面收藏/取消收藏之后切回来，心形状态要跟着更新
     this.loadFavoriteIds().then(() => this.applyFavoriteFlags())
   },
@@ -90,12 +113,25 @@ Page({
   },
 
   applyFavoriteFlags() {
-    const shows = this.data.shows.map((s) => ({ ...s, isFavorite: this._favoriteIds.has(s.id) }))
+    const shows = this.data.shows.map((s) => this.decorateShow(s))
     this.setData({ shows })
   },
 
-  markFavorites(list) {
-    return list.map((s) => ({ ...s, isFavorite: this._favoriteIds.has(s.id) }))
+  // 给每条演出记录补上渲染要用的字段：海报背景(有图用图、没图用兜底渐变，
+  // 跟网页版 pickFallbackGradient 逻辑一致)、收藏状态对应的心形图标、格式化好的文案
+  decorateShow(s) {
+    return {
+      ...s,
+      isFavorite: this._favoriteIds.has(s.id),
+      heartIcon: this._favoriteIds.has(s.id) ? HEART_ACTIVE : HEART_INACTIVE_MOBILE,
+      posterBg: s.poster_url ? `url('${s.poster_url}')` : pickFallbackGradient(s.id),
+      performersText: formatPerformers(s.performers),
+      showTimeText: formatShowTime(s),
+    }
+  },
+
+  decorateList(list) {
+    return list.map((s) => this.decorateShow(s))
   },
 
   saveFilters() {
@@ -147,21 +183,25 @@ Page({
   },
 
   async loadShows() {
-    this.setData({ loading: true, error: '', shows: [], hasMore: true })
+    this.setData({ loading: true, error: '', shows: [], hasMore: true, total: 0 })
     this._skip = 0
     try {
       const query = await this.buildQuery()
       if (!query) {
-        this.setData({ loading: false, shows: [], hasMore: false })
+        this.setData({ loading: false, shows: [], hasMore: false, total: 0 })
         return
       }
       const sortField = this.data.sortBy === 'price' ? 'price_min' : 'show_dt'
-      const res = await query.orderBy(sortField, 'asc').skip(0).limit(PAGE_SIZE).get()
+      const [res, countRes] = await Promise.all([
+        query.orderBy(sortField, 'asc').skip(0).limit(PAGE_SIZE).get(),
+        query.count(),
+      ])
       this._skip = res.data.length
       this.setData({
-        shows: this.markFavorites(res.data),
+        shows: this.decorateList(res.data),
         loading: false,
         hasMore: res.data.length === PAGE_SIZE,
+        total: countRes.total,
       })
     } catch (e) {
       this.setData({ loading: false, error: e.errMsg || '加载失败' })
@@ -180,7 +220,7 @@ Page({
       const res = await query.orderBy(sortField, 'asc').skip(this._skip).limit(PAGE_SIZE).get()
       this._skip += res.data.length
       this.setData({
-        shows: this.data.shows.concat(this.markFavorites(res.data)),
+        shows: this.data.shows.concat(this.decorateList(res.data)),
         loadingMore: false,
         hasMore: res.data.length === PAGE_SIZE,
       })
@@ -204,15 +244,42 @@ Page({
     this.setData({ sortBy: this.data.sortBy === 'time' ? 'price' : 'time' }, () => this.loadShows())
   },
 
+  // 筛选面板默认挂在"筛选"胶囊正下方(跟网页版 FilterPanel.tsx 的定位逻辑一致)。
+  // 屏幕比较窄的时候，固定宽度的面板从触发按钮位置往右展开可能会超出屏幕右边缘，
+  // 这里量一下触发按钮的位置和屏幕宽度，算出要往左边挪多少，避免面板被裁掉
   openFilterPanel() {
-    this.setData({ filterPanelOpen: true })
+    this.setData({ filterPanelOpen: true }, () => {
+      const windowWidth = wx.getWindowInfo().windowWidth
+      const panelWidth = Math.min(300, windowWidth - 32)
+      wx.createSelectorQuery()
+        .select('.filter-anchor')
+        .boundingClientRect((rect) => {
+          if (!rect) return
+          const overflow = rect.left + panelWidth - (windowWidth - 16)
+          this.setData({
+            filterPanelWidth: panelWidth,
+            filterPanelShift: overflow > 0 ? overflow : 0,
+          })
+        })
+        .exec()
+    })
+  },
+
+  // 网页版 FilterPanel 每次点/拖都是直接改全局筛选状态、立刻触发重新查询，
+  // "确定"按钮其实只是把面板关掉而已，不是"应用"——这里保持同样的交互：
+  // 每个筛选项一变就立刻重新加载，不用等点"确定"
+  applyFilters() {
+    this.updateActiveFilterCount()
+    this.saveFilters()
+    this.loadShows()
   },
 
   closeFilterPanel() {
     this.setData({ filterPanelOpen: false })
-    this.updateActiveFilterCount()
-    this.saveFilters()
-    this.loadShows()
+  },
+
+  switchFilterTab(e) {
+    this.setData({ filterTab: e.currentTarget.dataset.tab })
   },
 
   toggleWeekday(e) {
@@ -220,24 +287,29 @@ Page({
     const list = this.data.freeWeekdays.includes(day)
       ? this.data.freeWeekdays.filter((d) => d !== day)
       : [...this.data.freeWeekdays, day]
-    this.setData({ freeWeekdays: list })
+    this.setData({ freeWeekdays: list }, () => this.applyFilters())
   },
 
   onPriceChange(e) {
-    this.setData({ maxPrice: e.detail.value })
+    this.setData({ maxPrice: e.detail.value }, () => this.applyFilters())
   },
 
-
   openCityPicker() {
-    this.setData({ cityPickerOpen: true })
+    this.setData({ cityPickerOpen: true, cityGroups: cityData.cityDirectory })
   },
 
   closeCityPicker() {
-    this.setData({ cityPickerOpen: false, citySearch: '' })
+    this.setData({ cityPickerOpen: false, citySearch: '', cityGroups: cityData.cityDirectory })
   },
 
   onCitySearchInput(e) {
-    this.setData({ citySearch: e.detail.value })
+    const q = e.detail.value.trim()
+    const groups = q
+      ? cityData.cityDirectory
+          .map((g) => ({ letter: g.letter, cities: g.cities.filter((c) => c.name.includes(q)) }))
+          .filter((g) => g.cities.length > 0)
+      : cityData.cityDirectory
+    this.setData({ citySearch: e.detail.value, cityGroups: groups })
   },
 
   toggleCity(e) {
@@ -245,15 +317,38 @@ Page({
     const list = this.data.cityNames.includes(name)
       ? this.data.cityNames.filter((c) => c !== name)
       : [...this.data.cityNames, name]
-    this.setData({ cityNames: list })
+    this.setData({ cityNames: list }, () => this.applyFilters())
   },
 
   removeCity(e) {
     const name = e.currentTarget.dataset.name
-    this.setData({ cityNames: this.data.cityNames.filter((c) => c !== name) }, () => {
-      this.updateActiveFilterCount()
-      this.saveFilters()
-      this.loadShows()
+    this.setData({ cityNames: this.data.cityNames.filter((c) => c !== name) }, () => this.applyFilters())
+  },
+
+  jumpToLetter(e) {
+    const letter = e.currentTarget.dataset.letter
+    wx.createSelectorQuery()
+      .select('#city-section-' + letter)
+      .boundingClientRect((rect) => {
+        if (!rect) return
+        wx.pageScrollTo({ scrollTop: rect.top, duration: 0 })
+      })
+      .exec()
+  },
+
+  previewPoster(e) {
+    const url = e.currentTarget.dataset.url
+    if (url) wx.previewImage({ urls: [url] })
+  },
+
+  // 小程序不能像网页那样直接跳转到秀动这类外部网站(webview 打开外部域名
+  // 需要在小程序后台把域名加进"业务域名"白名单，我们不是这个域名的所有者，
+  // 加不了)，退而求其次复制链接，让用户自己去浏览器打开
+  copyDetailLink(e) {
+    const id = e.currentTarget.dataset.id
+    wx.setClipboardData({
+      data: `https://www.showstart.com/event/${id}`,
+      success: () => wx.showToast({ title: '链接已复制，可在浏览器打开', icon: 'none' }),
     })
   },
 
@@ -265,7 +360,7 @@ Page({
 
     // 乐观更新：先在界面上立刻反映，请求真正返回后失败了再改回去
     const shows = this.data.shows.slice()
-    shows[idx] = { ...shows[idx], isFavorite: !wasFavorite }
+    shows[idx] = { ...shows[idx], isFavorite: !wasFavorite, heartIcon: wasFavorite ? HEART_INACTIVE_MOBILE : HEART_ACTIVE }
     this.setData({ shows })
     if (wasFavorite) {
       this._favoriteIds.delete(show.id)
@@ -284,7 +379,7 @@ Page({
       }
     } catch (err) {
       const revert = this.data.shows.slice()
-      revert[idx] = { ...revert[idx], isFavorite: wasFavorite }
+      revert[idx] = { ...revert[idx], isFavorite: wasFavorite, heartIcon: wasFavorite ? HEART_ACTIVE : HEART_INACTIVE_MOBILE }
       this.setData({ shows: revert })
       if (wasFavorite) {
         this._favoriteIds.add(show.id)

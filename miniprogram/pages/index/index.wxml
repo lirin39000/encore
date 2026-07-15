@@ -1,25 +1,109 @@
 <view class="page">
-  <view class="topbar">
-    <input
-      class="search-input"
-      placeholder="搜索艺人、场馆或演出"
-      value="{{searchInput}}"
-      bindinput="onSearchInput"
-    />
-  </view>
-
-  <view class="toolbar">
-    <view class="pill {{scope === 'followed' ? 'pill-active' : ''}}" bindtap="toggleScope">我关注的艺人</view>
-    <view class="pill" bindtap="openFilterPanel">
-      筛选<block wx:if="{{activeFilterCount > 0}}"> ({{activeFilterCount}})</block>
+  <view class="header-inner">
+    <view class="header-row">
+      <text class="logo">Choose Live?!</text>
     </view>
-    <view class="pill" bindtap="toggleSort">排序：{{sortBy === 'time' ? '时间' : '价格'}}</view>
-  </view>
 
-  <view wx:if="{{cityNames.length > 0}}" class="city-chips">
-    <view wx:for="{{cityNames}}" wx:key="*this" class="chip">
-      {{item}}
-      <text class="chip-remove" data-name="{{item}}" bindtap="removeCity">×</text>
+    <view class="search-wrap">
+      <input
+        class="search-input"
+        placeholder="搜索艺人、场馆或演出"
+        value="{{searchInput}}"
+        bindinput="onSearchInput"
+      />
+    </view>
+
+    <view class="toolbar">
+      <view class="pill {{scope === 'followed' ? 'pill-active' : ''}}" bindtap="toggleScope">我关注的艺人</view>
+
+      <view class="filter-anchor">
+        <view class="pill filter-pill {{filterPanelOpen ? 'pill-active' : ''}}" bindtap="openFilterPanel">
+          ☰ 筛选<block wx:if="{{activeFilterCount > 0}}"> ({{activeFilterCount}})</block>
+        </view>
+
+        <view
+          wx:if="{{filterPanelOpen}}"
+          class="filter-panel"
+          style="width: {{filterPanelWidth}}px; left: {{-filterPanelShift}}px;"
+        >
+          <view class="filter-panel-body">
+            <view class="filter-tabs">
+              <view
+                class="filter-tab {{filterTab === 'location' ? 'filter-tab-active' : ''}}"
+                data-tab="location"
+                bindtap="switchFilterTab"
+              >位置</view>
+              <view
+                class="filter-tab {{filterTab === 'schedule' ? 'filter-tab-active' : ''}}"
+                data-tab="schedule"
+                bindtap="switchFilterTab"
+              >档期</view>
+              <view
+                class="filter-tab {{filterTab === 'price' ? 'filter-tab-active' : ''}}"
+                data-tab="price"
+                bindtap="switchFilterTab"
+              >价位</view>
+            </view>
+
+            <view class="filter-content">
+              <block wx:if="{{filterTab === 'location'}}">
+                <view class="filter-label">我的城市</view>
+                <view class="city-chip-row">
+                  <view wx:for="{{cityNames}}" wx:key="*this" class="chip">
+                    {{item}}
+                    <text class="chip-remove" data-name="{{item}}" catchtap="removeCity">✕</text>
+                  </view>
+                  <view class="add-city-circle" bindtap="openCityPicker">+</view>
+                </view>
+                <view wx:if="{{cityNames.length === 0}}" class="filter-hint">不限城市，点 + 添加</view>
+              </block>
+
+              <block wx:if="{{filterTab === 'schedule'}}">
+                <view class="filter-label">每周有空的时间</view>
+                <view class="weekday-row">
+                  <view
+                    wx:for="{{weekdayOptions}}"
+                    wx:key="key"
+                    class="weekday-circle {{freeWeekdays.indexOf(item.key) > -1 ? 'weekday-active' : ''}}"
+                    data-day="{{item.key}}"
+                    bindtap="toggleWeekday"
+                  >
+                    {{item.label}}
+                  </view>
+                </view>
+              </block>
+
+              <block wx:if="{{filterTab === 'price'}}">
+                <view class="filter-label">预算上限 ¥{{maxPrice}}</view>
+                <slider
+                  min="50"
+                  max="{{maxPriceCeiling}}"
+                  step="10"
+                  value="{{maxPrice}}"
+                  bindchange="onPriceChange"
+                  activeColor="#C4472E"
+                  backgroundColor="rgba(255,255,255,0.14)"
+                  block-size="16"
+                />
+              </block>
+            </view>
+          </view>
+
+          <view class="filter-confirm" bindtap="closeFilterPanel">确定</view>
+        </view>
+      </view>
+
+      <view class="pill sort-pill" bindtap="toggleSort">排序：{{sortBy === 'time' ? '时间' : '价格'}} ▾</view>
+    </view>
+
+    <view wx:if="{{filterPanelOpen}}" class="click-outside-mask" catchtap="closeFilterPanel"></view>
+
+    <view wx:if="{{!loading}}" class="meta-row">
+      <text class="total-text">共 {{total}} 场演出</text>
+      <view wx:for="{{cityNames}}" wx:key="*this" class="meta-chip">
+        <text>{{item}}</text>
+        <text class="meta-chip-remove" data-name="{{item}}" bindtap="removeCity">✕</text>
+      </view>
     </view>
   </view>
 
@@ -28,81 +112,84 @@
   <view wx:elif="{{shows.length === 0}}" class="status">暂无演出</view>
 
   <view wx:for="{{shows}}" wx:key="_id" class="card">
-    <image wx:if="{{item.poster_url}}" class="poster" src="{{item.poster_url}}" mode="aspectFill" />
-    <view class="info">
-      <view class="row-top">
-        <view class="title">{{item.title}}</view>
-        <view class="heart {{item.isFavorite ? 'heart-active' : ''}}" data-show="{{item}}" catchtap="toggleFavorite">
-          {{item.isFavorite ? '♥' : '♡'}}
-        </view>
+    <view class="card-blur" style="background-image:{{item.posterBg}};"></view>
+    <view class="card-overlay"></view>
+
+    <view class="card-info">
+      <view class="card-title">{{item.title}}</view>
+      <view class="card-row">
+        <text class="card-star">★</text>
+        <text class="card-performers">{{item.performersText}}</text>
       </view>
-      <view class="sub">{{item.performers || '艺人待定'}}</view>
-      <view class="sub">
-        {{item.show_time}}
-        <text wx:if="{{item.weekday !== null}}"> 周{{['一','二','三','四','五','六','日'][item.weekday]}}</text>
+      <view class="card-sub">{{item.showTimeText}}</view>
+      <view class="card-sub">{{item.site_name}} · {{item.city_name}}</view>
+      <view class="card-bottom-row">
+        <text class="card-price">{{item.price}}</text>
+        <text class="card-detail-link" data-id="{{item.id}}" catchtap="copyDetailLink">查看详情 →</text>
       </view>
-      <view class="sub">{{item.site_name}} · {{item.city_name}}</view>
-      <view class="price">{{item.price}}</view>
+    </view>
+
+    <view
+      class="card-poster"
+      style="background-image:{{item.posterBg}};"
+      data-url="{{item.poster_url}}"
+      bindtap="previewPoster"
+    >
+      <view wx:if="{{item.sold_out === 2}}" class="sold-out-badge">已售罄</view>
+      <image class="heart-btn" src="{{item.heartIcon}}" data-show="{{item}}" catchtap="toggleFavorite" />
     </view>
   </view>
 
   <view wx:if="{{loadingMore}}" class="status">加载中...</view>
   <view wx:if="{{!hasMore && shows.length > 0}}" class="status">没有更多了</view>
 
-  <!-- 筛选面板 -->
-  <view wx:if="{{filterPanelOpen}}" class="overlay" bindtap="closeFilterPanel">
-    <view class="sheet" catchtap="noop">
-      <view class="sheet-title">位置</view>
-      <view class="city-chips">
-        <view wx:for="{{cityNames}}" wx:key="*this" class="chip">
-          {{item}}
-          <text class="chip-remove" data-name="{{item}}" bindtap="removeCity">×</text>
-        </view>
-        <view class="add-city-btn" bindtap="openCityPicker">+ 添加城市</view>
-      </view>
-
-      <view class="sheet-title">档期（每周有空的时间）</view>
-      <view class="weekday-row">
-        <view
-          wx:for="{{weekdayOptions}}"
-          wx:key="key"
-          class="weekday-circle {{freeWeekdays.indexOf(item.key) > -1 ? 'weekday-active' : ''}}"
-          data-day="{{item.key}}"
-          bindtap="toggleWeekday"
-        >
-          {{item.label}}
-        </view>
-      </view>
-
-      <view class="sheet-title">价位上限 ¥{{maxPrice}}</view>
-      <slider min="50" max="{{maxPriceCeiling}}" step="10" value="{{maxPrice}}" bindchange="onPriceChange" activeColor="#C4472E" />
-
-      <button class="confirm-btn" bindtap="closeFilterPanel">确定</button>
-    </view>
-  </view>
-
   <!-- 城市选择 -->
   <view wx:if="{{cityPickerOpen}}" class="city-picker">
     <view class="city-picker-header">
-      <input class="search-input" placeholder="搜索城市" value="{{citySearch}}" bindinput="onCitySearchInput" />
+      <input class="city-search-input" placeholder="搜索城市" value="{{citySearch}}" bindinput="onCitySearchInput" />
       <text class="cancel-btn" bindtap="closeCityPicker">取消</text>
     </view>
-    <scroll-view scroll-y class="city-picker-body">
-      <block wx:for="{{cityGroups}}" wx:key="letter" wx:for-item="group">
-        <view class="city-letter">{{group.letter}}</view>
-        <view
-          wx:for="{{group.cities}}"
-          wx:key="code"
-          wx:for-item="city"
-          hidden="{{citySearch && city.name.indexOf(citySearch) === -1}}"
-          class="city-row"
-          data-name="{{city.name}}"
-          bindtap="toggleCity"
-        >
-          <text>{{city.name}}</text>
-          <text class="city-check">{{cityNames.indexOf(city.name) > -1 ? '✓' : ''}}</text>
+    <scroll-view scroll-y class="city-picker-body" scroll-with-animation>
+      <view class="city-picker-scroll-inner">
+        <view class="city-section-header">
+          <text class="filter-label">我的城市</text>
+          <text class="done-btn" bindtap="closeCityPicker">完成</text>
         </view>
-      </block>
+        <view class="city-chip-row">
+          <text wx:if="{{cityNames.length === 0}}" class="filter-hint">还没有选择城市，不限则显示全部</text>
+          <view wx:for="{{cityNames}}" wx:key="*this" class="chip">
+            {{item}}
+            <text class="chip-remove" data-name="{{item}}" catchtap="removeCity">✕</text>
+          </view>
+        </view>
+
+        <block wx:for="{{cityGroups}}" wx:key="letter" wx:for-item="group">
+          <view id="city-section-{{group.letter}}" class="city-letter">{{group.letter}}</view>
+          <view
+            wx:for="{{group.cities}}"
+            wx:key="code"
+            wx:for-item="city"
+            class="city-row"
+          >
+            <text>{{city.name}}</text>
+            <view
+              class="city-plus {{cityNames.indexOf(city.name) > -1 ? 'city-plus-active' : ''}}"
+              data-name="{{city.name}}"
+              bindtap="toggleCity"
+            >+</view>
+          </view>
+        </block>
+      </view>
     </scroll-view>
+
+    <view wx:if="{{!citySearch}}" class="letter-index">
+      <text
+        wx:for="{{cityGroups}}"
+        wx:key="letter"
+        class="letter-index-item"
+        data-letter="{{item.letter}}"
+        bindtap="jumpToLetter"
+      >{{item.letter}}</text>
+    </view>
   </view>
 </view>

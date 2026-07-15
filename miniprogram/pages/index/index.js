@@ -45,7 +45,6 @@ Page({
 
     filterTab: 'location', // location | schedule | price
     filterPanelOpen: false,
-    filterPanelWidth: 300,
     filterPanelShift: 0,
     cityPickerOpen: false,
     citySearch: '',
@@ -244,22 +243,20 @@ Page({
     this.setData({ sortBy: this.data.sortBy === 'time' ? 'price' : 'time' }, () => this.loadShows())
   },
 
-  // 筛选面板默认挂在"筛选"胶囊正下方(跟网页版 FilterPanel.tsx 的定位逻辑一致)。
-  // 屏幕比较窄的时候，固定宽度的面板从触发按钮位置往右展开可能会超出屏幕右边缘，
-  // 这里量一下触发按钮的位置和屏幕宽度，算出要往左边挪多少，避免面板被裁掉
+  // 筛选面板默认挂在"筛选"胶囊正下方(跟网页版 FilterPanel.tsx 的定位逻辑一致)，
+  // 宽度是 CSS 里写死的 rpx 值。屏幕窄的时候，面板从触发按钮位置往右展开可能会
+  // 超出屏幕右边缘，这里等面板真正渲染出来之后，直接量它自己的位置(不是预测宽度)，
+  // 算出要往左边挪多少，避免被裁掉——用 rpx 单位是因为小程序的 rpx 本来就是按
+  // "750rpx = 当前屏幕宽度"这个比例自动换算的，不用像网页那样自己再拿 px 换算一遍
   openFilterPanel() {
     this.setData({ filterPanelOpen: true }, () => {
       const windowWidth = wx.getWindowInfo().windowWidth
-      const panelWidth = Math.min(300, windowWidth - 32)
       wx.createSelectorQuery()
-        .select('.filter-anchor')
+        .select('.filter-panel')
         .boundingClientRect((rect) => {
           if (!rect) return
-          const overflow = rect.left + panelWidth - (windowWidth - 16)
-          this.setData({
-            filterPanelWidth: panelWidth,
-            filterPanelShift: overflow > 0 ? overflow : 0,
-          })
+          const overflow = rect.left + rect.width - (windowWidth - 8)
+          this.setData({ filterPanelShift: overflow > 0 ? overflow : 0 })
         })
         .exec()
     })

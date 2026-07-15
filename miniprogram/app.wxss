@@ -1,3 +1,7 @@
+view, input, text, image, button, scroll-view {
+  box-sizing: border-box;
+}
+
 page {
   background: #1B1512;
   color: #F2ECE1;

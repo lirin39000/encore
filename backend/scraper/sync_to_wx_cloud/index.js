@@ -76,11 +76,19 @@ async function syncArtists(records) {
   const existing = new Set()
   const PAGE_SIZE = 1000
   let skip = 0
-  while (true) {
-    const res = await db.collection('artists').skip(skip).limit(PAGE_SIZE).field({ name: true }).get()
-    res.data.forEach((doc) => existing.add(doc.name))
-    if (res.data.length < PAGE_SIZE) break
-    skip += PAGE_SIZE
+  try {
+    while (true) {
+      const res = await db.collection('artists').skip(skip).limit(PAGE_SIZE).field({ name: true }).get()
+      res.data.forEach((doc) => existing.add(doc.name))
+      if (res.data.length < PAGE_SIZE) break
+      skip += PAGE_SIZE
+    }
+  } catch (e) {
+    // 集合第一次同步之前根本不存在——add() 会自动建集合，但 get() 不会，
+    // 查询一个还没建过的集合会直接报错。当成"目前一个艺人都没有"处理，
+    // 后面照常把所有艺人名 add() 进去，集合就自然被建出来了
+    if (e.errCode !== -502005) throw e
+    console.log('artists 集合还不存在，当作空集合处理(add 会自动建)')
   }
 
   const toAdd = [...nameSet].filter((name) => !existing.has(name))

@@ -1,7 +1,7 @@
 {
   "cloudfunctionRoot": "cloudfunctions/",
   "projectname": "miniprogram",
-  "description": "Choose Live?! 微信小程序",
+  "description": "Live雷达 微信小程序",
   "appid": "wx907dd8c0d3d065e0",
   "setting": {
     "urlCheck": true,

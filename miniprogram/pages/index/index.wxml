@@ -1,7 +1,7 @@
 <view class="page">
   <view class="header-inner">
     <view class="header-row">
-      <text class="logo">Choose Live?!</text>
+      <text class="logo">Live雷达</text>
     </view>
 
     <view class="search-wrap">

@@ -63,7 +63,9 @@
         bindtap="previewPoster"
       >
         <view wx:if="{{item.sold_out === 2}}" class="sold-out-badge">已售罄</view>
-        <image class="heart-btn" src="{{item.heartIcon}}" data-show="{{item}}" catchtap="toggleFavorite" />
+        <view class="heart-btn" data-show="{{item}}" catchtap="toggleFavorite">
+          <image class="heart-icon" src="{{item.heartIcon}}" />
+        </view>
       </view>
     </view>
   </view>

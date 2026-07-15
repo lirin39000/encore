@@ -1,4 +1,4 @@
-const cityData = require('../../data/cities.json')
+const cityData = require('../../data/cities.js')
 
 const WEEKDAY_LABELS = ['一', '二', '三', '四', '五', '六', '日']
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6]

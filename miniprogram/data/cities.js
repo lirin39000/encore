@@ -1,4 +1,4 @@
-{
+module.exports = {
   "hotCities": [
     {
       "code": "10",

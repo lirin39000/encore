@@ -11,6 +11,17 @@ function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+// 用设备本地日期(不是 UTC)算"今天"，跟后端网页版 /shows 接口用北京时间算
+// "今天"是同一个道理——show_dt 存的是演出自己的当地时间字符串，不是 UTC 时间戳，
+// 得拿同样口径的日期比较，不然会有一天的误差
+function todayDateString() {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 // 阵容很长的拼盘演出会把卡片撑得很高，只展示前几个名字+"等N组"，跟网页版 ShowCard.tsx 一致
 function formatPerformers(performers) {
   if (!performers) return '艺人待定'
@@ -156,6 +167,10 @@ Page({
     const db = wx.cloud.database()
     const _ = db.command
     const conditions = []
+
+    // 已经过去的演出不该再出现在列表里；show_dt 解析失败(null)的记录还是放行，
+    // 没法确定是不是过期的，保守起见继续展示
+    conditions.push(_.or([{ show_dt: _.gte(todayDateString()) }, { show_dt: _.eq(null) }]))
 
     if (this.data.cityNames.length > 0) {
       conditions.push({ city_name: _.in(this.data.cityNames) })

@@ -1,4 +1,6 @@
+from datetime import datetime
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Header
 from sqlmodel import text
@@ -30,6 +32,14 @@ def list_shows(
     # 没有艺人信息的一般是脱口秀/话剧/展览这类非音乐演出，这个网站只关心有艺人的音乐现场
     where = ["s.performers IS NOT NULL", "s.performers != ''"]
     params: dict = {}
+
+    # 已经过去的演出不应该再出现在列表里(之前一直没做这个过滤，抓过的演出会一直
+    # 留在数据库里、也一直会被查出来，导致列表里能刷到早就办完的演出)。
+    # show_dt 解析失败的记录(NULL)还是放行——没法确定它是不是已经过去，
+    # 保守起见继续展示，跟其他地方对"解析失败"的宽松处理方式一致
+    today_cn = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+    where.append("(s.show_dt IS NULL OR s.show_dt >= :today)")
+    params["today"] = today_cn
 
     for i, kw in enumerate(NON_MUSIC_TITLE_KEYWORDS):
         where.append(f"s.title NOT LIKE :nk{i}")

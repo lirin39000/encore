@@ -56,6 +56,7 @@ Page({
 
     filterTab: 'location', // location | schedule | price
     filterPanelOpen: false,
+    filterPanelReady: false,
     filterPanelShift: 0,
     cityPickerOpen: false,
     citySearch: '',
@@ -272,14 +273,18 @@ Page({
   // 筛选面板默认挂在"筛选"胶囊正下方(跟网页版 FilterPanel.tsx 的定位逻辑一致)，
   // 宽度是 CSS 里写死的 rpx 值。屏幕窄的时候，面板从触发按钮位置往右展开可能会
   // 超出屏幕右边缘，这里等面板真正渲染出来之后，直接量它自己的位置(不是预测宽度)，
-  // 算出要往左边挪多少，避免被裁掉——用 rpx 单位是因为小程序的 rpx 本来就是按
-  // "750rpx = 当前屏幕宽度"这个比例自动换算的，不用像网页那样自己再拿 px 换算一遍
+  // 算出要往左边挪多少，避免被裁掉。
+  // 之前的做法是"先在默认位置显示出来，量完再纠正"，纠正前那一下的位置会被用户
+  // 看到、看着像"跳了一下"。现在改成面板一开始就是透明的(opacity:0，但still挂在
+  // 页面上、量得到)，等测量结果拿到、真正的位置定下来了才显示出来，用户不会再
+  // 看到那个未纠正的中间状态
   openFilterPanel() {
-    this.setData({ filterPanelOpen: true, filterPanelShift: 0 }, () => {
+    this.setData({ filterPanelOpen: true, filterPanelReady: false, filterPanelShift: 0 }, () => {
       // setData 的回调只保证"数据已经发给渲染层"，不保证渲染层已经排好版——
       // 小程序逻辑层和渲染层是两个线程，真机上偶尔会有量早了、量到还没定型的
-      // 布局的情况(表现为"有时候面板位置偏右没修正")。用 wx.nextTick 让个一拍，
-      // 再等一个很短的延时兜底，基本能保证量到的是渲染层真正定型之后的位置
+      // 布局的情况。用 wx.nextTick 让个一拍，再等一个很短的延时兜底，基本能
+      // 保证量到的是渲染层真正定型之后的位置(反正面板这时候还是透明的，
+      // 这个延时本身不会被用户看到)
       wx.nextTick(() => {
         setTimeout(() => this.measureFilterPanelShift(), 30)
       })
@@ -291,9 +296,15 @@ Page({
     wx.createSelectorQuery()
       .select('.filter-panel')
       .boundingClientRect((rect) => {
-        if (!rect) return
+        if (!rect) {
+          this.setData({ filterPanelReady: true })
+          return
+        }
         const overflow = rect.left + rect.width - (windowWidth - 8)
-        this.setData({ filterPanelShift: overflow > 0 ? overflow : 0 })
+        this.setData({
+          filterPanelShift: overflow > 0 ? overflow : 0,
+          filterPanelReady: true,
+        })
       })
       .exec()
   },
@@ -308,7 +319,7 @@ Page({
   },
 
   closeFilterPanel() {
-    this.setData({ filterPanelOpen: false })
+    this.setData({ filterPanelOpen: false, filterPanelReady: false })
   },
 
   switchFilterTab(e) {

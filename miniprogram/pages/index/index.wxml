@@ -24,7 +24,7 @@
         <view
           wx:if="{{filterPanelOpen}}"
           class="filter-panel"
-          style="left: {{-filterPanelShift}}px;"
+          style="left: {{-filterPanelShift}}px; opacity: {{filterPanelReady ? 1 : 0}};"
         >
           <view class="filter-panel-body">
             <view class="filter-tabs">

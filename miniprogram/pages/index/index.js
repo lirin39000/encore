@@ -309,17 +309,17 @@ Page({
       .exec()
   },
 
-  // 网页版 FilterPanel 每次点/拖都是直接改全局筛选状态、立刻触发重新查询，
-  // "确定"按钮其实只是把面板关掉而已，不是"应用"——这里保持同样的交互：
-  // 每个筛选项一变就立刻重新加载，不用等点"确定"
-  applyFilters() {
-    this.updateActiveFilterCount()
+  // 手机上"点一下筛选项、列表马上跟着变一次"体验很跳，跟网页版不一样：
+  // 面板内的调整(城市/档期/价位)都先只改本地状态、更新一下"筛选(N)"这个数字
+  // 让用户有反馈，但不重新查询；真正重新查询+存起来，等点了"确定"才做一次
+  commitFilters() {
     this.saveFilters()
     this.loadShows()
   },
 
   closeFilterPanel() {
     this.setData({ filterPanelOpen: false, filterPanelReady: false })
+    this.commitFilters()
   },
 
   switchFilterTab(e) {
@@ -333,12 +333,12 @@ Page({
       : [...this.data.freeWeekdays, day]
     this.setData({ freeWeekdays: list }, () => {
       this.syncWeekdayOptions()
-      this.applyFilters()
+      this.updateActiveFilterCount()
     })
   },
 
   onPriceChange(e) {
-    this.setData({ maxPrice: e.detail.value }, () => this.applyFilters())
+    this.setData({ maxPrice: e.detail.value }, () => this.updateActiveFilterCount())
   },
 
   openCityPicker() {
@@ -364,12 +364,23 @@ Page({
     const list = this.data.cityNames.includes(name)
       ? this.data.cityNames.filter((c) => c !== name)
       : [...this.data.cityNames, name]
-    this.setData({ cityNames: list }, () => this.applyFilters())
+    this.setData({ cityNames: list }, () => this.updateActiveFilterCount())
   },
 
+  // 筛选面板/城市选择器里面的"移除城市"：先只改本地状态，等点"确定"才真正重新查询
   removeCity(e) {
     const name = e.currentTarget.dataset.name
-    this.setData({ cityNames: this.data.cityNames.filter((c) => c !== name) }, () => this.applyFilters())
+    this.setData({ cityNames: this.data.cityNames.filter((c) => c !== name) }, () => this.updateActiveFilterCount())
+  },
+
+  // 首页"共N场演出"下面那排城市 chip 是面板之外的东西，没有"确定"这个步骤，
+  // 点了就直接生效，跟网页版一致
+  removeCityImmediate(e) {
+    const name = e.currentTarget.dataset.name
+    this.setData({ cityNames: this.data.cityNames.filter((c) => c !== name) }, () => {
+      this.updateActiveFilterCount()
+      this.commitFilters()
+    })
   },
 
   jumpToLetter(e) {

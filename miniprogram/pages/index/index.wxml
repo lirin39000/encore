@@ -102,7 +102,7 @@
       <text class="total-text">共 {{total}} 场演出</text>
       <view wx:for="{{cityNames}}" wx:key="*this" class="meta-chip">
         <text>{{item}}</text>
-        <text class="meta-chip-remove" data-name="{{item}}" bindtap="removeCity">✕</text>
+        <text class="meta-chip-remove" data-name="{{item}}" bindtap="removeCityImmediate">✕</text>
       </view>
     </view>
   </view>

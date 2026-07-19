@@ -16,7 +16,9 @@ interface FiltersState {
   addCity: (cityName: string) => void
   removeCity: (cityName: string) => void
   clearCities: () => void
+  setCityNames: (cityNames: string[]) => void
   toggleWeekday: (day: number) => void
+  setFreeWeekdays: (freeWeekdays: number[]) => void
   setMaxPrice: (price: number) => void
 }
 
@@ -37,12 +39,14 @@ export const useFiltersStore = create<FiltersState>()(
         set((s) => (s.cityNames.includes(cityName) ? s : { cityNames: [...s.cityNames, cityName] })),
       removeCity: (cityName) => set((s) => ({ cityNames: s.cityNames.filter((c) => c !== cityName) })),
       clearCities: () => set({ cityNames: [] }),
+      setCityNames: (cityNames) => set({ cityNames }),
       toggleWeekday: (day) =>
         set((s) => ({
           freeWeekdays: s.freeWeekdays.includes(day)
             ? s.freeWeekdays.filter((d) => d !== day)
             : [...s.freeWeekdays, day],
         })),
+      setFreeWeekdays: (freeWeekdays) => set({ freeWeekdays }),
       setMaxPrice: (price) => set({ maxPrice: price }),
     }),
     {

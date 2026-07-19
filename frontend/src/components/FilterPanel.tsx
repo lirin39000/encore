@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { theme, fontSans } from '../theme/theme'
 import { useFiltersStore, MAX_PRICE_CEILING } from '../store/filters'
 import CityPicker from './CityPicker'
@@ -18,9 +18,31 @@ type Tab = 'location' | 'schedule' | 'price'
 export default function FilterPanel({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<Tab>('location')
   const [showCityPicker, setShowCityPicker] = useState(false)
-  const { cityNames, removeCity, freeWeekdays, maxPrice, toggleWeekday, setMaxPrice } = useFiltersStore()
+  const { cityNames, freeWeekdays, maxPrice, setCityNames, setFreeWeekdays, setMaxPrice } = useFiltersStore()
   const panelRef = useRef<HTMLDivElement>(null)
   const [shiftLeft, setShiftLeft] = useState(0)
+
+  // 面板里的调整先只改这份本地暂存状态，不直接碰全局筛选状态——手机上"点一下
+  // 变一下"的跳动感太明显了，改成跟小程序版一样，等面板关闭(点确定/点外面)
+  // 才一次性提交。用 ref 存一份最新值，是因为下面提交的那个 useEffect
+  // 清理函数只在"卸载"这一瞬间跑一次，它的闭包捕获的是第一次渲染时的旧值，
+  // 不会随着后续的 setState 自动更新，得从 ref 里读最新的
+  const [stagedCityNames, setStagedCityNames] = useState(cityNames)
+  const [stagedFreeWeekdays, setStagedFreeWeekdays] = useState(freeWeekdays)
+  const [stagedMaxPrice, setStagedMaxPrice] = useState(maxPrice)
+
+  const latestRef = useRef({ stagedCityNames, stagedFreeWeekdays, stagedMaxPrice })
+  latestRef.current = { stagedCityNames, stagedFreeWeekdays, stagedMaxPrice }
+
+  useEffect(() => {
+    return () => {
+      const latest = latestRef.current
+      setCityNames(latest.stagedCityNames)
+      setFreeWeekdays(latest.stagedFreeWeekdays)
+      setMaxPrice(latest.stagedMaxPrice)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 面板默认挂在"筛选"胶囊正下方(left:0，相对触发按钮)。窄屏下按钮靠左，420px 宽的面板
   // 会溢出右边缘，量一下实际超出了多少，往左边挪回来，宽屏下量出来是 0 不用挪。
@@ -41,6 +63,18 @@ export default function FilterPanel({ onClose }: { onClose: () => void }) {
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
   }, [])
+
+  const toggleStagedWeekday = (day: number) => {
+    setStagedFreeWeekdays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]))
+  }
+
+  const removeStagedCity = (name: string) => {
+    setStagedCityNames((prev) => prev.filter((c) => c !== name))
+  }
+
+  const toggleStagedCity = (name: string) => {
+    setStagedCityNames((prev) => (prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name]))
+  }
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'location', label: '位置' },
@@ -99,7 +133,7 @@ export default function FilterPanel({ onClose }: { onClose: () => void }) {
           <>
             <div style={{ fontSize: 12, color: theme.textSec, marginBottom: 10 }}>我的城市</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-              {cityNames.map((name) => (
+              {stagedCityNames.map((name) => (
                 <span
                   key={name}
                   style={{
@@ -108,7 +142,7 @@ export default function FilterPanel({ onClose }: { onClose: () => void }) {
                   }}
                 >
                   {name}
-                  <span onClick={() => removeCity(name)} style={{ cursor: 'pointer', color: theme.textSec }}>✕</span>
+                  <span onClick={() => removeStagedCity(name)} style={{ cursor: 'pointer', color: theme.textSec }}>✕</span>
                 </span>
               ))}
               <button
@@ -121,7 +155,7 @@ export default function FilterPanel({ onClose }: { onClose: () => void }) {
                 +
               </button>
             </div>
-            {cityNames.length === 0 && (
+            {stagedCityNames.length === 0 && (
               <div style={{ fontSize: 12, color: theme.textSec, marginTop: 10 }}>不限城市，点 + 添加</div>
             )}
           </>
@@ -132,11 +166,11 @@ export default function FilterPanel({ onClose }: { onClose: () => void }) {
             <div style={{ fontSize: 13, color: theme.textSec, marginBottom: 12 }}>每周有空的时间</div>
             <div style={{ display: 'flex', gap: 4, justifyContent: 'space-between' }}>
               {WEEKDAYS.map((d) => {
-                const active = freeWeekdays.includes(d.key)
+                const active = stagedFreeWeekdays.includes(d.key)
                 return (
                   <button
                     key={d.key}
-                    onClick={() => toggleWeekday(d.key)}
+                    onClick={() => toggleStagedWeekday(d.key)}
                     style={{
                       width: 30, height: 30, borderRadius: '50%', flexShrink: 0, padding: 0,
                       border: `1px solid ${active ? theme.accent : theme.border}`,
@@ -155,14 +189,14 @@ export default function FilterPanel({ onClose }: { onClose: () => void }) {
 
         {tab === 'price' && (
           <div>
-            <div style={{ fontSize: 14, color: theme.textSec, marginBottom: 8 }}>预算上限 ¥{maxPrice}</div>
+            <div style={{ fontSize: 14, color: theme.textSec, marginBottom: 8 }}>预算上限 ¥{stagedMaxPrice}</div>
             <input
               type="range"
               min={50}
               max={MAX_PRICE_CEILING}
               step={10}
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(Number(e.target.value))}
+              value={stagedMaxPrice}
+              onChange={(e) => setStagedMaxPrice(Number(e.target.value))}
               style={{ width: '100%', accentColor: theme.accent }}
             />
           </div>
@@ -179,7 +213,14 @@ export default function FilterPanel({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      {showCityPicker && <CityPicker onClose={() => setShowCityPicker(false)} />}
+      {showCityPicker && (
+        <CityPicker
+          cityNames={stagedCityNames}
+          onToggle={toggleStagedCity}
+          onRemove={removeStagedCity}
+          onClose={() => setShowCityPicker(false)}
+        />
+      )}
     </div>
   )
 }

@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { theme, fontSans } from '../theme/theme'
 import cityData from '../data/cities.json'
-import { useFiltersStore } from '../store/filters'
 
 interface City {
   code: string
@@ -10,14 +9,17 @@ interface City {
 }
 
 interface CityPickerProps {
+  cityNames: string[]
+  onToggle: (name: string) => void
+  onRemove: (name: string) => void
   onClose: () => void
 }
 
-export default function CityPicker({ onClose }: CityPickerProps) {
+// 城市选择是从筛选面板里打开的，选中/取消选中的城市只改面板自己暂存的那份状态，
+// 不直接碰全局筛选状态——跟面板本身"点了确定才真正生效"是同一套逻辑，
+// 所以这里的城市数据和增删操作都是父组件(FilterPanel)传进来的，不再自己连全局 store
+export default function CityPicker({ cityNames, onToggle, onRemove, onClose }: CityPickerProps) {
   const [query, setQuery] = useState('')
-  const { cityNames, addCity, removeCity } = useFiltersStore()
-
-  const toggle = (name: string) => (cityNames.includes(name) ? removeCity(name) : addCity(name))
 
   const groups = useMemo(() => {
     const q = query.trim()
@@ -113,7 +115,7 @@ export default function CityPicker({ onClose }: CityPickerProps) {
                 }}
               >
                 {name}
-                <span onClick={() => removeCity(name)} style={{ cursor: 'pointer', color: theme.textSec }}>✕</span>
+                <span onClick={() => onRemove(name)} style={{ cursor: 'pointer', color: theme.textSec }}>✕</span>
               </span>
             ))}
           </div>
@@ -132,7 +134,7 @@ export default function CityPicker({ onClose }: CityPickerProps) {
                   }}
                 >
                   <span>{c.name}</span>
-                  <button onClick={() => toggle(c.name)} style={plusButtonStyle(cityNames.includes(c.name))}>+</button>
+                  <button onClick={() => onToggle(c.name)} style={plusButtonStyle(cityNames.includes(c.name))}>+</button>
                 </div>
               ))}
             </div>

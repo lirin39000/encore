@@ -3,7 +3,7 @@ import { useInfiniteShows } from '../queries/shows'
 import ShowCard from '../components/ShowCard'
 import FilterPanel from '../components/FilterPanel'
 import SortDropdown from '../components/SortDropdown'
-import { theme, fontSans, fontSerif } from '../theme/theme'
+import { theme, fontSans } from '../theme/theme'
 import { useFiltersStore, MAX_PRICE_CEILING } from '../store/filters'
 import { useAuthStore } from '../store/auth'
 import { useClickOutside } from '../hooks/useClickOutside'
@@ -49,7 +49,9 @@ export default function Home() {
     <div style={{ paddingTop: 16, paddingBottom: 40 }}>
       <div style={{ padding: '0 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-        <div style={{ fontFamily: fontSerif, fontSize: 20, fontWeight: 700, letterSpacing: 0.5 }}>LiveFlow</div>
+        {/* 用图片而不是文字，字形是设计稿里手写的那套，系统字体拼不出来。
+            alt 保留文字，图挂了或读屏软件读到的时候还是"LiveFlow" */}
+        <img src="/logo.png" alt="LiveFlow" style={{ height: 24, width: 'auto', display: 'block' }} />
         {user ? (
           <div style={{ fontSize: 13, color: theme.textSec }}>{user.phone}</div>
         ) : (

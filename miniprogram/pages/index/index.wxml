@@ -1,7 +1,7 @@
 <view class="page">
   <view class="header-inner">
     <view class="header-row">
-      <text class="logo">LiveFlow</text>
+      <image class="logo" src="/images/logo.png" mode="heightFix" />
     </view>
 
     <view class="search-wrap">

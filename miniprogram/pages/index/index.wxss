@@ -14,11 +14,10 @@
   margin-bottom: 36rpx;
 }
 
+/* logo 从文字改成了图片：字形是设计稿里手写的那套，系统字体拼不出来。
+   高度固定、宽度由 mode="heightFix" 按原图比例算，换图不用改样式 */
 .logo {
-  font-size: 36rpx;
-  font-weight: 700;
-  letter-spacing: 1rpx;
-  color: #F2ECE1;
+  height: 44rpx;
 }
 
 .search-wrap {

@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlmodel import text
 
 from app.db import engine
-from app.auth_util import get_user_id_from_token
+from app.auth_util import get_user_id_from_token, get_user_id_from_openid
 from app.services import aliyun_dm
 from app.services.email_content import verify_email_html
 
@@ -21,8 +21,18 @@ VERIFY_TOKEN_VALID_HOURS = 24
 RESEND_COOLDOWN_SECONDS = 60
 
 
-def require_user(authorization: str | None = Header(default=None)) -> int:
+def require_user(
+    authorization: str | None = Header(default=None),
+    x_wx_openid: str | None = Header(default=None),
+    x_proxy_secret: str | None = Header(default=None),
+) -> int:
+    """
+    两条身份路径：网页版是短信登录换来的 session token，小程序是 apiProxy 云函数
+    转发过来的 openid(见 auth_util)。两边拿到的都是 users.id，后面的接口不用区分来源。
+    """
     user_id = get_user_id_from_token(authorization)
+    if not user_id:
+        user_id = get_user_id_from_openid(x_wx_openid, x_proxy_secret)
     if not user_id:
         raise HTTPException(status_code=401, detail="请先登录")
     return user_id

@@ -14,6 +14,8 @@ const cloud = require('wx-server-sdk')
 const ENV_ID = process.env.WX_CLOUD_ENV
 const SECRET_ID = process.env.TENCENT_SECRET_ID
 const SECRET_KEY = process.env.TENCENT_SECRET_KEY
+// 反向同步(小程序关注艺人 -> Postgres)用。没设置时跳过那一步，不影响前面的同步
+const DATABASE_URL = process.env.DATABASE_URL
 const EXPORT_PATH = path.join(__dirname, '..', 'shows_export.json')
 const CONCURRENCY = 20
 
@@ -127,6 +129,99 @@ async function syncArtists(records) {
   }
 }
 
+// 反向同步：把小程序用户的关注艺人从云数据库镜像进 Postgres。
+//
+// 为什么要这么做：小程序没有登录，用户身份是微信的 openid，关注艺人存在云数据库里；
+// 而每天的邮件推送任务读的是 Postgres。两边本来完全不相交，小程序用户订阅了邮件也
+// 匹配不到任何演出。镜像之后推送任务一行都不用改，它只是发现用户变多了。
+//
+// 方向是单向的(云数据库 -> Postgres)，云数据库始终是小程序关注列表的唯一真相来源，
+// Postgres 这份只是给推送任务读的副本，所以每次都整份替换而不是增量合并。
+async function mirrorFollowedArtists() {
+  if (!DATABASE_URL) {
+    console.log('没有 DATABASE_URL，跳过关注艺人镜像(小程序用户不会收到邮件提醒)')
+    return
+  }
+
+  const byOpenid = new Map()
+  const PAGE_SIZE = 1000
+  let skip = 0
+  try {
+    while (true) {
+      const res = await db.collection('followed_artists').skip(skip).limit(PAGE_SIZE).get()
+      for (const doc of res.data) {
+        // 服务端 SDK 是管理员权限，读得到所有人的记录；_openid 是微信写进去的，
+        // 客户端伪造不了，可以直接当身份用
+        if (!doc._openid || !doc.artist_name) continue
+        if (!byOpenid.has(doc._openid)) byOpenid.set(doc._openid, [])
+        byOpenid.get(doc._openid).push(doc.artist_name)
+      }
+      if (res.data.length < PAGE_SIZE) break
+      skip += PAGE_SIZE
+    }
+  } catch (e) {
+    if (e.errCode === -502005) {
+      console.log('followed_artists 集合还不存在，没有小程序用户关注过艺人，跳过')
+      return
+    }
+    throw e
+  }
+
+  if (byOpenid.size === 0) {
+    console.log('云数据库里没有小程序用户的关注记录，跳过镜像')
+    return
+  }
+
+  await writeFollowsToPostgres(byOpenid)
+}
+
+// 单独拆出来是为了能脱离微信云数据库测试：本地没有腾讯云凭证时读不了云数据库，
+// 但可以直接喂一个假的 openid -> 艺人名 映射进来，验证 Postgres 这半的写入逻辑
+async function writeFollowsToPostgres(byOpenid) {
+  const { Client } = require('pg')
+  const client = new Client({
+    connectionString: DATABASE_URL,
+    // Supabase 强制 SSL，但用的是它自己的证书链，Node 默认验不过
+    ssl: { rejectUnauthorized: false },
+  })
+  await client.connect()
+  let userCount = 0
+  let rowCount = 0
+  try {
+    for (const [openid, names] of byOpenid) {
+      const unique = [...new Set(names)]
+      // 整个用户的替换放在一个事务里：万一中途失败，不会留下"关注列表被清空"的状态
+      await client.query('BEGIN')
+      try {
+        await client.query(
+          `INSERT INTO users (openid, nickname, created_at) VALUES ($1, '', $2)
+           ON CONFLICT (openid) DO NOTHING`,
+          [openid, new Date().toISOString()]
+        )
+        const { rows } = await client.query('SELECT id FROM users WHERE openid = $1', [openid])
+        const userId = rows[0].id
+        await client.query('DELETE FROM followed_artists WHERE user_id = $1', [userId])
+        for (const name of unique) {
+          await client.query(
+            `INSERT INTO followed_artists (user_id, artist_name, created_at)
+             VALUES ($1, $2, $3)`,
+            [userId, name, new Date().toISOString()]
+          )
+        }
+        await client.query('COMMIT')
+        userCount += 1
+        rowCount += unique.length
+      } catch (e) {
+        await client.query('ROLLBACK')
+        console.error(`  镜像 openid=${openid.slice(0, 8)}... 失败，跳过: ${e.message}`)
+      }
+    }
+  } finally {
+    await client.end()
+  }
+  console.log(`关注艺人镜像完成：${userCount} 个小程序用户，共 ${rowCount} 条关注`)
+}
+
 async function main() {
   const records = JSON.parse(fs.readFileSync(EXPORT_PATH, 'utf-8'))
   console.log(`读到 ${records.length} 条记录，开始同步到云数据库 shows 集合...`)
@@ -139,9 +234,16 @@ async function main() {
   }
 
   await syncArtists(records)
+  await mirrorFollowedArtists()
 }
 
-main().catch((e) => {
-  console.error('同步脚本出错:', e)
-  process.exit(1)
-})
+// 只有直接 `node index.js` 时才跑，被 require 进来时不跑——这样测试脚本可以单独
+// 调用下面导出的函数，不会顺带触发整轮同步
+if (require.main === module) {
+  main().catch((e) => {
+    console.error('同步脚本出错:', e)
+    process.exit(1)
+  })
+}
+
+module.exports = { writeFollowsToPostgres }

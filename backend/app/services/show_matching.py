@@ -11,7 +11,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 
 from app.text_normalize import normalize_name
 
@@ -60,6 +60,47 @@ def match_shows_for_user(conn, user_id: int, shows: list[dict]) -> list[dict]:
             matched.append({**show, "matched_artists": hits})
     matched.sort(key=lambda s: (s["show_dt"] is None, s["show_dt"] or ""))
     return matched
+
+
+def match_shows_for_users(conn, user_ids: list[int], shows: list[dict]) -> list[dict]:
+    """
+    多个身份合起来看。同一个人在网页版和小程序各有一条 users 记录、各自关注了一些艺人，
+    两边关注的艺人可能重叠也可能不同，合并后按演出去重——同一场演出只出现一次，
+    但"因为你关注了谁"要把两边命中的艺人名并起来。
+    """
+    merged: dict[int, dict] = {}
+    for user_id in user_ids:
+        for show in match_shows_for_user(conn, user_id, shows):
+            existing = merged.get(show["id"])
+            if existing:
+                for name in show["matched_artists"]:
+                    if name not in existing["matched_artists"]:
+                        existing["matched_artists"].append(name)
+            else:
+                merged[show["id"]] = {**show, "matched_artists": list(show["matched_artists"])}
+    out = list(merged.values())
+    out.sort(key=lambda s: (s["show_dt"] is None, s["show_dt"] or ""))
+    return out
+
+
+def filter_unnotified_for_users(conn, user_ids: list[int], shows: list[dict]) -> list[dict]:
+    """任何一个身份通知过，就算这个人已经知道了——收件人是同一个信箱，不该再发一遍"""
+    if not shows:
+        return []
+    # expanding=True 让 SQLAlchemy 把列表展开成 IN (?, ?, ...)，
+    # SQLite 和 Postgres 都能用，不用为两种数据库各写一版
+    stmt = text("SELECT show_id FROM email_notify_log WHERE user_id IN :uids").bindparams(
+        bindparam("uids", expanding=True)
+    )
+    rows = conn.execute(stmt, {"uids": user_ids}).all()
+    already = {r[0] for r in rows}
+    return [s for s in shows if s["id"] not in already]
+
+
+def record_notified_for_users(conn, user_ids: list[int], shows: list[dict]) -> None:
+    """每个身份都要记，否则下次轮到另一个身份时又会把这批当成新的"""
+    for user_id in user_ids:
+        record_notified(conn, user_id, shows)
 
 
 def filter_unnotified(conn, user_id: int, shows: list[dict]) -> list[dict]:

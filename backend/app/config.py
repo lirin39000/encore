@@ -16,6 +16,12 @@ AMAP_WEB_SERVICE_KEY = os.environ["AMAP_WEB_SERVICE_KEY"]
 ALIYUN_DM_ACCOUNT_NAME = os.environ.get("ALIYUN_DM_ACCOUNT_NAME", "")
 ALIYUN_DM_FROM_ALIAS = os.environ.get("ALIYUN_DM_FROM_ALIAS", "LiveFlow")
 
+# 小程序通过 apiProxy 云函数访问后端时用的共享密钥。云函数那边能拿到微信验证过的
+# openid，把它放在请求头里传过来——但请求头谁都能伪造，所以必须同时带上这个密钥证明
+# "这个请求确实来自我们自己的云函数"。没设置时 openid 那条身份路径直接关闭(而不是
+# 放行)，避免忘配的时候变成任何人都能冒充任意用户
+WX_PROXY_SECRET = os.environ.get("WX_PROXY_SECRET", "")
+
 # 邮件里的验证/退订链接指向哪，比如 https://api.your-domain.com。这两个链接是用户在
 # 邮件客户端里点的，必须是外网能访问的后端地址，不能用 localhost
 SITE_BASE_URL = os.environ.get("SITE_BASE_URL", "http://localhost:8000").rstrip("/")

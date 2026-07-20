@@ -5,6 +5,7 @@
   "description": "把 shows_export.json 同步进微信云开发的云数据库，供小程序直接读取",
   "main": "index.js",
   "dependencies": {
+    "pg": "^8.22.0",
     "wx-server-sdk": "~2.6.3"
   }
 }

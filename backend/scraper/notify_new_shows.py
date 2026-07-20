@@ -20,7 +20,7 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR.parent))
 
-from sqlalchemy import text  # noqa: E402
+from sqlalchemy import bindparam, text  # noqa: E402
 
 from app.db import engine, IS_POSTGRES  # noqa: E402
 from app.services import aliyun_dm  # noqa: E402
@@ -28,9 +28,9 @@ from app.services.email_content import new_shows_html  # noqa: E402
 from app.services.show_matching import (  # noqa: E402
     MAX_SHOWS_PER_EMAIL,
     fetch_upcoming_shows,
-    filter_unnotified,
-    match_shows_for_user,
-    record_notified,
+    filter_unnotified_for_users,
+    match_shows_for_users,
+    record_notified_for_users,
 )
 
 # 连续发信之间歇一下。阿里云对触发邮件有每秒发送量限制，订阅用户多起来之后
@@ -39,13 +39,37 @@ SEND_INTERVAL_SECONDS = 1
 
 
 def load_subscribers(conn):
-    return conn.execute(
+    """
+    按邮箱聚合，而不是按用户。同一个人在网页版(手机号身份)和小程序(openid 身份)
+    各订阅一次、填的是同一个邮箱时，是两条 users 记录、两条订阅记录，但只该收到一封信——
+    否则两封内容高度重叠的邮件同时到，看起来就像系统出了 bug。
+
+    聚合之后一个邮箱对应多个 user_id：匹配演出时要把这些身份的关注艺人并起来，
+    写 notify_log 时也要每个 user_id 都写，不然下次跑另一个身份那边又会当成新的。
+    """
+    rows = conn.execute(
         text(
             "SELECT user_id, email, unsubscribe_token FROM email_subscriptions "
-            "WHERE verified = :t AND active = :t"
+            "WHERE verified = :t AND active = :t ORDER BY user_id"
         ),
         {"t": True},
     ).mappings().all()
+
+    by_email: dict[str, dict] = {}
+    for r in rows:
+        # 邮箱大小写不敏感，Foo@x.com 和 foo@x.com 是同一个信箱
+        key = r["email"].strip().lower()
+        if key in by_email:
+            by_email[key]["user_ids"].append(r["user_id"])
+        else:
+            by_email[key] = {
+                "email": r["email"],
+                "user_ids": [r["user_id"]],
+                # 退订链接用第一条订阅的 token。点了之后只退掉那一条，另一条还在——
+                # 邮件底部的说明会让人再点一次，虽然啰嗦但不会误删用户没打算退的订阅
+                "unsubscribe_token": r["unsubscribe_token"],
+            }
+    return list(by_email.values())
 
 
 def main():
@@ -72,15 +96,16 @@ def main():
 
         sent = 0
         for sub in subscribers:
-            user_id = sub["user_id"]
-            matched = match_shows_for_user(conn, user_id, shows)
-            fresh = filter_unnotified(conn, user_id, matched)
+            user_ids = sub["user_ids"]
+            matched = match_shows_for_users(conn, user_ids, shows)
+            fresh = filter_unnotified_for_users(conn, user_ids, matched)
             if not fresh:
                 continue
 
             shown = fresh[:MAX_SHOWS_PER_EMAIL]
             if args.dry_run:
-                print(f"  [dry-run] {sub['email']}: {len(fresh)} 场新演出 "
+                where = f"(合并 {len(user_ids)} 个身份)" if len(user_ids) > 1 else ""
+                print(f"  [dry-run] {sub['email']}{where}: {len(fresh)} 场新演出 "
                       f"({', '.join(s['title'] or '?' for s in shown)})", flush=True)
                 continue
 
@@ -95,10 +120,13 @@ def main():
 
             # 注意记的是 fresh 全部而不是 shown——没列出来的那些已经算在"还有 N 场"里了，
             # 不记的话明天会被当成新的再发一遍
-            record_notified(conn, user_id, fresh)
+            record_notified_for_users(conn, user_ids, fresh)
             conn.execute(
-                text("UPDATE email_subscriptions SET last_notified_at = :now WHERE user_id = :uid"),
-                {"now": datetime.now().isoformat(), "uid": user_id},
+                text(
+                    "UPDATE email_subscriptions SET last_notified_at = :now "
+                    "WHERE user_id IN :uids"
+                ).bindparams(bindparam("uids", expanding=True)),
+                {"now": datetime.now().isoformat(), "uids": user_ids},
             )
             conn.commit()
             sent += 1

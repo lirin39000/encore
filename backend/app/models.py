@@ -19,9 +19,17 @@ class Venue(SQLModel, table=True):
 
 
 class User(SQLModel, table=True):
+    """
+    一个用户要么是网页版注册的(有 phone，短信登录)，要么是小程序来的(有 openid，
+    微信隐式身份)，两者互斥。没做账号打通——同一个人在两边就是两条记录，
+    邮件推送那边靠邮箱地址去重，不靠身份识别。
+    """
     __tablename__ = "users"
     id: Optional[int] = Field(default=None, primary_key=True)
-    phone: str = Field(unique=True, index=True)
+    # 小程序用户没有手机号，所以这两列都可空。Postgres 的 UNIQUE 允许多行 NULL，
+    # 不会因为一堆 phone 为空的小程序用户互相冲突
+    phone: Optional[str] = Field(default=None, unique=True, index=True)
+    openid: Optional[str] = Field(default=None, unique=True, index=True)
     nickname: str = ""
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
 

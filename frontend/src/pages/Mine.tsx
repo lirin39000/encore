@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/auth'
 import {
   useFollowedArtists, useAddFollowedArtist, useRemoveFollowedArtist,
   useFavorites, useEmailSubscription, useSetEmailSubscription,
-  useResendVerifyEmail, useToggleEmailSubscription, useDeleteEmailSubscription,
+  useResendVerifyEmail, useDeleteEmailSubscription,
 } from '../queries/me'
 import { useSearchArtists } from '../queries/shows'
 import { useClickOutside } from '../hooks/useClickOutside'
@@ -232,7 +232,6 @@ function EmailSubscriptionCard({ loggedIn, onLogin }: { loggedIn: boolean; onLog
 
   const setSub = useSetEmailSubscription()
   const resend = useResendVerifyEmail()
-  const toggle = useToggleEmailSubscription()
   const remove = useDeleteEmailSubscription()
 
   // 还没填过邮箱的人直接进输入态，不用先点一下"添加"
@@ -261,20 +260,7 @@ function EmailSubscriptionCard({ loggedIn, onLogin }: { loggedIn: boolean; onLog
         borderRadius: 14, padding: '18px 18px 20px',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ fontSize: 15, fontWeight: 700 }}>演出上新邮件提醒</div>
-        {sub?.verified && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', flexShrink: 0 }}>
-            <input
-              type="checkbox"
-              checked={sub.active}
-              onChange={(e) => toggle.mutate(e.target.checked)}
-              style={{ accentColor: theme.accent, width: 16, height: 16, cursor: 'pointer' }}
-            />
-            <span style={{ fontSize: 13, color: theme.textSec }}>{sub.active ? '已开启' : '已关闭'}</span>
-          </label>
-        )}
-      </div>
+      <div style={{ fontSize: 15, fontWeight: 700 }}>演出上新邮件提醒</div>
 
       <div style={{ ...label, marginTop: 8, marginBottom: 14 }}>
         「关注艺人」里的艺人有新演出时，给你发一封邮件。每天最多一封，随时可以退订。

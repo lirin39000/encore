@@ -70,7 +70,10 @@ class EmailSubscription(SQLModel, table=True):
     email: str
     # 邮箱换了要重新验证，所以 verified 跟着 email 走，不是跟着用户走
     verified: bool = False
-    # 用户可以留着邮箱但暂时关掉推送，跟"删掉订阅"区分开
+    # 残留字段，现在恒为 True。原本是"暂停推送但保留邮箱"，后来取消了这个状态——
+    # 网页上看着像订阅着实际收不到信，而且暂停期间演出会积压、重开时一次性轰一封。
+    # 现在退订就是删除整条订阅。不直接删这个字段是因为生产库里它是 NOT NULL 且没有
+    # server_default，代码一旦不再写入，INSERT 就会失败
     active: bool = True
     verify_token: Optional[str] = Field(default=None, index=True)
     verify_token_expires_at: Optional[str] = None

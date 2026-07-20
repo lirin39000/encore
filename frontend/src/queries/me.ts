@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from '../api/client'
+import { apiGet, apiPost, apiPut, apiDelete } from '../api/client'
 import type { Show } from '../api/types'
 
 interface FollowedArtist {
@@ -86,25 +86,6 @@ export function useSetEmailSubscription() {
 export function useResendVerifyEmail() {
   return useMutation({
     mutationFn: () => apiPost('/me/email-subscription/resend'),
-  })
-}
-
-export function useToggleEmailSubscription() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (active: boolean) => apiPatch('/me/email-subscription', { active }),
-    onMutate: async (active: boolean) => {
-      await qc.cancelQueries({ queryKey: emailSubKey })
-      const previous = qc.getQueryData<{ subscription: EmailSubscription | null }>(emailSubKey)
-      qc.setQueryData<{ subscription: EmailSubscription | null }>(emailSubKey, (old) =>
-        old?.subscription ? { subscription: { ...old.subscription, active } } : old
-      )
-      return { previous }
-    },
-    onError: (_err, _active, context) => {
-      if (context?.previous) qc.setQueryData(emailSubKey, context.previous)
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: emailSubKey }),
   })
 }
 

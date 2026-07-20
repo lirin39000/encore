@@ -15,9 +15,11 @@ from sqlalchemy import text
 
 from app.text_normalize import normalize_name
 
-# 一封邮件里最多列几场，超出的折叠成一句"还有 N 场"。真按 20 场全列出来邮件会长到没人看，
-# 而且容易被邮件服务商判成营销邮件
-MAX_SHOWS_PER_EMAIL = 8
+# 一封邮件里最多列几场，超出的折叠成一句"还有 N 场"。定这个数不是嫌邮件长——用户就是想
+# 看全部——而是 Gmail 会把超过约 102KB 的正文截断成"[邮件已截断]"，要多点一次才看得到剩下的。
+# 实测一场演出约 0.8KB，100 场约 83KB，留了足够余量。实际用量远低于此：关注 55 个艺人也
+# 才匹配出 25 场，所以这个上限基本等于"全部显示"，只是兜住极端情况
+MAX_SHOWS_PER_EMAIL = 100
 
 
 def fetch_upcoming_shows(conn) -> list[dict]:

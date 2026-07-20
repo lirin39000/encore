@@ -250,27 +250,6 @@ def resend_verify_email(user_id: int = Depends(require_user)):
     return {"success": True}
 
 
-class EmailSubscriptionToggleBody(BaseModel):
-    active: bool
-
-
-@router.patch("/email-subscription")
-def toggle_email_subscription(
-    body: EmailSubscriptionToggleBody, user_id: int = Depends(require_user)
-):
-    """只开关推送，邮箱和验证状态都留着，用户想再打开时不用重新验证"""
-    with engine.connect() as conn:
-        row = _load_subscription(conn, user_id)
-        if not row:
-            raise HTTPException(status_code=404, detail="还没有填写邮箱")
-        conn.execute(
-            text("UPDATE email_subscriptions SET active = :a WHERE user_id = :uid"),
-            {"a": body.active, "uid": user_id},
-        )
-        conn.commit()
-    return {"success": True, "active": body.active}
-
-
 @router.delete("/email-subscription")
 def delete_email_subscription(user_id: int = Depends(require_user)):
     with engine.connect() as conn:

@@ -84,13 +84,19 @@ def unsubscribe(token: str = ""):
                 simple_page("链接已失效", "这个退订链接对应的订阅已经不存在了，你不会再收到提醒邮件。"),
                 status_code=400,
             )
-        # 退订只关推送、保留邮箱和验证状态，用户改主意时在网站上一键就能打开
+        # 退订直接删掉订阅，而不是留一个"已暂停"的状态。留暂停状态有两个毛病：网页上
+        # 看到邮箱还在、像是订阅着的，实际却收不到信；而且暂停期间演出会一直积压，
+        # 重新打开时会收到一封列着几十上百场的邮件。想再订阅就重新填邮箱、重新验证一次
         conn.execute(
-            text("UPDATE email_subscriptions SET active = :f WHERE user_id = :uid"),
-            {"f": False, "uid": row["user_id"]},
+            text("DELETE FROM email_subscriptions WHERE user_id = :uid"),
+            {"uid": row["user_id"]},
+        )
+        conn.execute(
+            text("DELETE FROM email_notify_log WHERE user_id = :uid"),
+            {"uid": row["user_id"]},
         )
         conn.commit()
 
     return HTMLResponse(
-        simple_page("已退订", f"不会再往 {row['email']} 发演出提醒了。想恢复的话，去 LiveFlow 的「我的」页面重新打开。")
+        simple_page("已退订", f"不会再往 {row['email']} 发演出提醒了。想恢复的话，去 LiveFlow 的「我的」页面重新填一次邮箱。")
     )

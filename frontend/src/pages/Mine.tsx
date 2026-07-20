@@ -3,13 +3,14 @@ import { theme, fontSans } from '../theme/theme'
 import { useAuthStore } from '../store/auth'
 import {
   useFollowedArtists, useAddFollowedArtist, useRemoveFollowedArtist,
-  useFavorites,
+  useFavorites, useEmailSubscription, useSetEmailSubscription,
+  useResendVerifyEmail, useToggleEmailSubscription, useDeleteEmailSubscription,
 } from '../queries/me'
 import { useSearchArtists } from '../queries/shows'
 import { useClickOutside } from '../hooks/useClickOutside'
 import ShowCard from '../components/ShowCard'
 
-type Tab = 'artists' | 'favorites'
+type Tab = 'artists' | 'favorites' | 'email'
 
 export default function Mine() {
   const [tab, setTab] = useState<Tab>('artists')
@@ -49,6 +50,7 @@ export default function Mine() {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'artists', label: '关注艺人' },
     { key: 'favorites', label: '收藏的演出' },
+    { key: 'email', label: '邮箱订阅' },
   ]
 
   return (
@@ -183,7 +185,12 @@ export default function Mine() {
               <div style={{ fontSize: 13, color: theme.textSec, padding: '20px 0' }}>还没有关注的艺人</div>
             )}
           </div>
+
         </div>
+      )}
+
+      {tab === 'email' && (
+        <EmailSubscriptionCard loggedIn={loggedIn} onLogin={openLoginModal} />
       )}
 
       {tab === 'favorites' && (
@@ -210,6 +217,175 @@ export default function Mine() {
       <div style={{ textAlign: 'center', fontSize: 12, color: theme.textSec, marginTop: 32 }}>
         有问题或建议欢迎反馈至 lirin3900@gmail.com ╮(╯▽╰)╭
       </div>
+    </div>
+  )
+}
+
+function EmailSubscriptionCard({ loggedIn, onLogin }: { loggedIn: boolean; onLogin: () => void }) {
+  // 未登录时卡片照样渲染，只是把表单换成登录引导——整块藏起来的话，
+  // 没登录的人点进这个 tab 会看到一片空白，不知道这里本来有什么
+  const { data } = useEmailSubscription(loggedIn)
+  const sub = data?.subscription ?? null
+  const [input, setInput] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [notice, setNotice] = useState('')
+
+  const setSub = useSetEmailSubscription()
+  const resend = useResendVerifyEmail()
+  const toggle = useToggleEmailSubscription()
+  const remove = useDeleteEmailSubscription()
+
+  // 还没填过邮箱的人直接进输入态，不用先点一下"添加"
+  const showForm = editing || !sub
+
+  const submit = () => {
+    const email = input.trim()
+    if (!email) return
+    setNotice('')
+    setSub.mutate(email, {
+      onSuccess: () => {
+        setEditing(false)
+        setInput('')
+        setNotice('验证邮件已发出，去邮箱点一下链接就生效了')
+      },
+      onError: (e: Error) => setNotice(e.message),
+    })
+  }
+
+  const label = { fontSize: 13, color: theme.textSec, lineHeight: 1.7 } as const
+
+  return (
+    <div
+      style={{
+        background: theme.panel, border: `1px solid ${theme.border}`,
+        borderRadius: 14, padding: '18px 18px 20px',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ fontSize: 15, fontWeight: 700 }}>演出上新邮件提醒</div>
+        {sub?.verified && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', flexShrink: 0 }}>
+            <input
+              type="checkbox"
+              checked={sub.active}
+              onChange={(e) => toggle.mutate(e.target.checked)}
+              style={{ accentColor: theme.accent, width: 16, height: 16, cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: 13, color: theme.textSec }}>{sub.active ? '已开启' : '已关闭'}</span>
+          </label>
+        )}
+      </div>
+
+      <div style={{ ...label, marginTop: 8, marginBottom: 14 }}>
+        「关注艺人」里的艺人有新演出时，给你发一封邮件。每天最多一封，随时可以退订。
+      </div>
+
+      {!loggedIn ? (
+        <div style={label}>
+          <span onClick={onLogin} style={{ color: theme.accent, cursor: 'pointer', fontWeight: 600 }}>
+            去登录
+          </span>
+          {' '}后可以填写邮箱开启提醒
+        </div>
+      ) : showForm ? (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            type="email"
+            placeholder="你的邮箱地址"
+            style={{
+              flex: 1, minWidth: 0, padding: '10px 14px', border: `1px solid ${theme.border}`,
+              borderRadius: 10, fontSize: 16, outline: 'none', background: theme.subtle,
+              color: theme.text, fontFamily: fontSans,
+            }}
+          />
+          <button
+            onClick={submit}
+            disabled={setSub.isPending}
+            style={{
+              flexShrink: 0, background: theme.accent, color: '#FFFFFF', border: 'none', borderRadius: 10,
+              padding: '10px 18px', fontSize: 13, fontWeight: 700, fontFamily: fontSans,
+              cursor: setSub.isPending ? 'default' : 'pointer', opacity: setSub.isPending ? 0.6 : 1,
+            }}
+          >
+            {setSub.isPending ? '发送中' : '订阅'}
+          </button>
+          {sub && (
+            <button
+              onClick={() => { setEditing(false); setInput(''); setNotice('') }}
+              style={{
+                flexShrink: 0, background: 'transparent', color: theme.textSec,
+                border: `1px solid ${theme.border}`, borderRadius: 10, padding: '10px 14px',
+                fontSize: 13, cursor: 'pointer', fontFamily: fontSans,
+              }}
+            >
+              取消
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 14, minWidth: 0, wordBreak: 'break-all' }}>
+            {sub.email}
+            {!sub.verified && (
+              <span style={{ fontSize: 12, color: theme.gold, marginLeft: 8 }}>待验证</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            {!sub.verified && (
+              <button
+                onClick={() => {
+                  setNotice('')
+                  resend.mutate(undefined, {
+                    onSuccess: () => setNotice('验证邮件已重新发出'),
+                    onError: (e: Error) => setNotice(e.message),
+                  })
+                }}
+                disabled={resend.isPending}
+                style={{
+                  fontSize: 12, color: theme.text, background: theme.subtle,
+                  border: `1px solid ${theme.border}`, borderRadius: 100, padding: '5px 12px',
+                  cursor: 'pointer', fontFamily: fontSans,
+                }}
+              >
+                重发验证邮件
+              </button>
+            )}
+            <button
+              onClick={() => { setEditing(true); setInput(sub.email); setNotice('') }}
+              style={{
+                fontSize: 12, color: theme.textSec, background: 'transparent',
+                border: `1px solid ${theme.border}`, borderRadius: 100, padding: '5px 12px',
+                cursor: 'pointer', fontFamily: fontSans,
+              }}
+            >
+              换邮箱
+            </button>
+            <button
+              onClick={() => { setNotice(''); remove.mutate() }}
+              style={{
+                fontSize: 12, color: theme.textSec, background: 'transparent',
+                border: `1px solid ${theme.border}`, borderRadius: 100, padding: '5px 12px',
+                cursor: 'pointer', fontFamily: fontSans,
+              }}
+            >
+              取消订阅
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!sub?.verified && sub && !editing && (
+        <div style={{ ...label, marginTop: 12 }}>
+          验证邮件已发到 {sub.email}，点开里面的链接才会开始收到提醒。没收到的话看一下垃圾邮件。
+        </div>
+      )}
+
+      {notice && (
+        <div style={{ ...label, marginTop: 12, color: theme.gold }}>{notice}</div>
+      )}
     </div>
   )
 }

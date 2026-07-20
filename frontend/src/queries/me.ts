@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiGet, apiPost, apiDelete } from '../api/client'
+import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from '../api/client'
 import type { Show } from '../api/types'
 
 interface FollowedArtist {
@@ -54,6 +54,65 @@ export function useRemoveFollowedArtist() {
       if (context?.previous) qc.setQueryData(key, context.previous)
     },
     onSettled: () => qc.invalidateQueries({ queryKey: key }),
+  })
+}
+
+export interface EmailSubscription {
+  email: string
+  verified: boolean
+  active: boolean
+}
+
+const emailSubKey = ['me', 'email-subscription']
+
+export function useEmailSubscription(enabled: boolean) {
+  return useQuery({
+    queryKey: emailSubKey,
+    queryFn: () => apiGet<{ subscription: EmailSubscription | null }>('/me/email-subscription'),
+    enabled,
+  })
+}
+
+export function useSetEmailSubscription() {
+  const qc = useQueryClient()
+  return useMutation({
+    // 这里不做乐观更新：提交邮箱会触发一封验证邮件，发信失败(额度用完/地址被拒)是
+    // 真实会发生的事，先把 UI 改成"待验证"再回滚反而更让人困惑
+    mutationFn: (email: string) => apiPut<EmailSubscription>('/me/email-subscription', { email }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: emailSubKey }),
+  })
+}
+
+export function useResendVerifyEmail() {
+  return useMutation({
+    mutationFn: () => apiPost('/me/email-subscription/resend'),
+  })
+}
+
+export function useToggleEmailSubscription() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (active: boolean) => apiPatch('/me/email-subscription', { active }),
+    onMutate: async (active: boolean) => {
+      await qc.cancelQueries({ queryKey: emailSubKey })
+      const previous = qc.getQueryData<{ subscription: EmailSubscription | null }>(emailSubKey)
+      qc.setQueryData<{ subscription: EmailSubscription | null }>(emailSubKey, (old) =>
+        old?.subscription ? { subscription: { ...old.subscription, active } } : old
+      )
+      return { previous }
+    },
+    onError: (_err, _active, context) => {
+      if (context?.previous) qc.setQueryData(emailSubKey, context.previous)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: emailSubKey }),
+  })
+}
+
+export function useDeleteEmailSubscription() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => apiDelete('/me/email-subscription'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: emailSubKey }),
   })
 }
 

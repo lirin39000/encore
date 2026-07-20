@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import SQLModel, Field
 
 
@@ -55,6 +56,45 @@ class Favorite(SQLModel, table=True):
     user_id: int = Field(foreign_key="users.id", index=True)
     show_id: int
     created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
+
+
+class EmailSubscription(SQLModel, table=True):
+    """
+    邮件订阅。没有直接给 users 表加字段，是因为线上 Postgres 的表结构靠
+    SQLModel.metadata.create_all 维护，它只建缺失的表、不会给已存在的表补列，
+    users 表早就建好了，加字段得手写 ALTER 迁移。单独一张表就没这个问题。
+    """
+    __tablename__ = "email_subscriptions"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", unique=True, index=True)
+    email: str
+    # 邮箱换了要重新验证，所以 verified 跟着 email 走，不是跟着用户走
+    verified: bool = False
+    # 用户可以留着邮箱但暂时关掉推送，跟"删掉订阅"区分开
+    active: bool = True
+    verify_token: Optional[str] = Field(default=None, index=True)
+    verify_token_expires_at: Optional[str] = None
+    # 用来给"重发验证信"做频率限制，不然按钮可以被一直点、拿我们的发信额度去轰别人邮箱
+    verify_sent_at: Optional[str] = None
+    # 退订链接每封邮件都带，token 不过期，换邮箱时才重新生成
+    unsubscribe_token: str = Field(index=True)
+    created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
+    verified_at: Optional[str] = None
+    last_notified_at: Optional[str] = None
+
+
+class EmailNotifyLog(SQLModel, table=True):
+    """
+    每个用户已经就哪些演出发过通知。判断"上新"靠的是这张表而不是 shows 表的时间字段——
+    shows 只有 last_seen_at(每次抓取都会刷新)，没有"首次出现"的概念；而且用户中途新关注
+    一个艺人时，那个艺人的存量演出对这个用户来说也算新的，按用户记录才对得上。
+    """
+    __tablename__ = "email_notify_log"
+    __table_args__ = (UniqueConstraint("user_id", "show_id", name="uq_email_notify_user_show"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    show_id: int
+    sent_at: str = Field(default_factory=lambda: datetime.now().isoformat())
 
 
 class VenueReview(SQLModel, table=True):

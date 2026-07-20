@@ -7,6 +7,10 @@
 (地图选点筛选被简化成了城市名单选，场馆详情页也没有入口了)，跑一次要好几分钟，
 纯粹浪费时间。以后真要做"交通预估"之类需要坐标的功能，再把它加回来。
 
+最后一步"发演出上新提醒"读的是线上 Postgres(用户和订阅信息只在那边)，所以必须排在
+"同步到 Supabase"之后，不然算出来的"新演出"是拿旧数据比的。没配 ALIYUN_DM_ACCOUNT_NAME
+时这步会自己跳过，不报错。
+
 微信云数据库那两步(导出 JSON + Node 脚本同步)需要环境变量
 WX_CLOUD_ENV / TENCENT_SECRET_ID / TENCENT_SECRET_KEY，本地没配的话
 这两步会失败但不影响前面 Supabase 那条已经成功同步的线。
@@ -30,6 +34,7 @@ STEPS = [
     ("同步到 Supabase 云端(网页版)", [PYTHON, str(SCRIPT_DIR / "migrate_to_postgres.py")], None),
     ("导出演出数据 JSON(小程序版)", [PYTHON, str(SCRIPT_DIR / "export_shows_json.py")], None),
     ("同步到微信云数据库(小程序版)", [NODE, "index.js"], SCRIPT_DIR / "sync_to_wx_cloud"),
+    ("给订阅用户发演出上新提醒", [PYTHON, str(SCRIPT_DIR / "notify_new_shows.py")], None),
 ]
 
 

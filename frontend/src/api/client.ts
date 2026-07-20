@@ -29,6 +29,24 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return handle<T>(res)
 }
 
+export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  return handle<T>(res)
+}
+
+export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  return handle<T>(res)
+}
+
 export async function apiDelete<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'DELETE',

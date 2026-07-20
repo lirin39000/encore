@@ -51,7 +51,7 @@ export default function Home() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         {/* 用图片而不是文字，字形是设计稿里手写的那套，系统字体拼不出来。
             alt 保留文字，图挂了或读屏软件读到的时候还是"LiveFlow" */}
-        <img src="/logo.png" alt="LiveFlow" style={{ height: 24, width: 'auto', display: 'block' }} />
+        <img src="/logo.png" alt="LiveFlow" style={{ height: 72, width: 'auto', display: 'block' }} />
         {user ? (
           <div style={{ fontSize: 13, color: theme.textSec }}>{user.phone}</div>
         ) : (

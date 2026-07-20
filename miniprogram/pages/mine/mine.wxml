@@ -3,6 +3,7 @@
     <view class="tabs">
       <view class="tab {{tab === 'artists' ? 'tab-active' : ''}}" data-tab="artists" bindtap="switchTab">关注艺人</view>
       <view class="tab {{tab === 'favorites' ? 'tab-active' : ''}}" data-tab="favorites" bindtap="switchTab">收藏的演出</view>
+      <view class="tab {{tab === 'email' ? 'tab-active' : ''}}" data-tab="email" bindtap="switchTab">邮箱订阅</view>
     </view>
   </view>
 
@@ -69,6 +70,50 @@
           <image class="heart-icon" src="{{item.heartIcon}}" />
         </view>
       </view>
+    </view>
+  </view>
+
+  <view wx:if="{{tab === 'email'}}" class="section page-padded">
+    <view class="sub-card">
+      <view class="sub-title">演出上新邮件提醒</view>
+      <view class="sub-desc">「关注艺人」里的艺人有新演出时，给你发一封邮件。每天最多一封，随时可以退订。</view>
+
+      <view wx:if="{{loadingSub}}" class="status">加载中...</view>
+
+      <block wx:elif="{{!sub || editingEmail}}">
+        <view class="add-row">
+          <input
+            class="add-input"
+            type="text"
+            placeholder="你的邮箱地址"
+            value="{{emailInput}}"
+            bindinput="onEmailInput"
+          />
+          <view class="add-btn {{submitting ? 'add-btn-disabled' : ''}}" bindtap="submitEmail">
+            {{submitting ? '发送中' : '订阅'}}
+          </view>
+        </view>
+        <view wx:if="{{editingEmail}}" class="sub-actions">
+          <view class="sub-btn" bindtap="cancelEditEmail">取消</view>
+        </view>
+      </block>
+
+      <block wx:else>
+        <view class="sub-email">
+          {{sub.email}}
+          <text wx:if="{{!sub.verified}}" class="sub-pending">待验证</text>
+        </view>
+        <view class="sub-actions">
+          <view wx:if="{{!sub.verified}}" class="sub-btn" bindtap="resendVerify">重发验证邮件</view>
+          <view class="sub-btn" bindtap="startEditEmail">换邮箱</view>
+          <view class="sub-btn" bindtap="cancelSubscription">取消订阅</view>
+        </view>
+        <view wx:if="{{!sub.verified}}" class="sub-desc sub-desc-tight">
+          验证邮件已发到 {{sub.email}}，点开里面的链接才会开始收到提醒。没收到的话看一下垃圾邮件。
+        </view>
+      </block>
+
+      <view wx:if="{{subNotice}}" class="sub-notice">{{subNotice}}</view>
     </view>
   </view>
 

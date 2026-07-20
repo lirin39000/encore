@@ -1,3 +1,4 @@
+const { apiGet, apiPost, apiPut, apiDelete } = require('../../utils/api.js')
 const { pickFallbackGradient } = require('../../utils/fallbackGradients.js')
 const { HEART_ACTIVE, HEART_INACTIVE_MOBILE } = require('../../utils/icons.js')
 
@@ -22,7 +23,7 @@ function formatShowTime(show) {
 
 Page({
   data: {
-    tab: 'artists', // artists | favorites
+    tab: 'artists', // artists | favorites | email
     artists: [],
     favorites: [],
     loadingArtists: true,
@@ -31,6 +32,14 @@ Page({
     addInput: '',
     suggestions: [],
     showSuggestions: false,
+
+    // 邮箱订阅。sub 为 null 表示还没订阅过，此时显示输入框
+    sub: null,
+    loadingSub: true,
+    emailInput: '',
+    editingEmail: false,
+    subNotice: '',
+    submitting: false,
   },
 
   _searchTimer: null,
@@ -54,6 +63,76 @@ Page({
     const tab = e.currentTarget.dataset.tab
     this.setData({ tab })
     if (tab === 'favorites') this.loadFavorites()
+    if (tab === 'email') this.loadSubscription()
+  },
+
+  // ---------- 邮箱订阅 ----------
+  // 数据存在后端 Postgres(不是云数据库)，因为每天发提醒邮件的任务读的是那边。
+  // 身份由 apiProxy 云函数用微信验证过的 openid 提供，这里不用管登录。
+
+  async loadSubscription() {
+    this.setData({ loadingSub: true })
+    try {
+      const res = await apiGet('/me/email-subscription')
+      this.setData({ sub: res.subscription, loadingSub: false })
+    } catch (e) {
+      this.setData({ loadingSub: false, subNotice: e.message })
+    }
+  },
+
+  onEmailInput(e) {
+    this.setData({ emailInput: e.detail.value })
+  },
+
+  async submitEmail() {
+    const email = this.data.emailInput.trim()
+    if (!email) return
+    this.setData({ subNotice: '', submitting: true })
+    try {
+      await apiPut('/me/email-subscription', { email })
+      this.setData({
+        emailInput: '',
+        editingEmail: false,
+        submitting: false,
+        subNotice: '验证邮件已发出，去邮箱点一下链接就生效了',
+      })
+      this.loadSubscription()
+    } catch (e) {
+      this.setData({ submitting: false, subNotice: e.message })
+    }
+  },
+
+  async resendVerify() {
+    this.setData({ subNotice: '' })
+    try {
+      await apiPost('/me/email-subscription/resend')
+      this.setData({ subNotice: '验证邮件已重新发出' })
+    } catch (e) {
+      this.setData({ subNotice: e.message })
+    }
+  },
+
+  startEditEmail() {
+    this.setData({ editingEmail: true, emailInput: this.data.sub.email, subNotice: '' })
+  },
+
+  cancelEditEmail() {
+    this.setData({ editingEmail: false, emailInput: '', subNotice: '' })
+  },
+
+  async cancelSubscription() {
+    const { confirm } = await wx.showModal({
+      title: '取消订阅',
+      content: '取消后邮箱不再保留，想重新订阅要再验证一次。',
+    })
+    if (!confirm) return
+    this.setData({ subNotice: '' })
+    try {
+      await apiDelete('/me/email-subscription')
+      this.setData({ sub: null, emailInput: '', editingEmail: false })
+    } catch (e) {
+      this.setData({ subNotice: e.message })
+    }
   },
 
   async loadArtists() {

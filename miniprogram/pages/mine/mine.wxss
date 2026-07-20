@@ -131,3 +131,68 @@
   color: rgba(242, 236, 225, 0.62);
   margin-top: 64rpx;
 }
+
+/* ---------- 邮箱订阅 ---------- */
+
+.sub-card {
+  background: #2A211C;
+  border: 1rpx solid rgba(255, 255, 255, 0.14);
+  border-radius: 28rpx;
+  padding: 36rpx 36rpx 40rpx;
+}
+
+.sub-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #F2ECE1;
+}
+
+.sub-desc {
+  font-size: 26rpx;
+  color: rgba(242, 236, 225, 0.62);
+  line-height: 1.7;
+  margin: 16rpx 0 28rpx;
+}
+
+.sub-desc-tight {
+  margin: 24rpx 0 0;
+}
+
+.sub-email {
+  font-size: 28rpx;
+  color: #F2ECE1;
+  word-break: break-all;
+}
+
+.sub-pending {
+  font-size: 24rpx;
+  color: #B8862E;
+  margin-left: 16rpx;
+}
+
+.sub-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-top: 24rpx;
+}
+
+.sub-btn {
+  font-size: 24rpx;
+  color: rgba(242, 236, 225, 0.62);
+  border: 1rpx solid rgba(255, 255, 255, 0.14);
+  padding: 10rpx 24rpx;
+  border-radius: 200rpx;
+}
+
+/* 订阅按钮直接复用 .add-btn(金色)，跟"添加艺人"保持一致；这个类只管禁用时的变灰 */
+.add-btn-disabled {
+  opacity: 0.6;
+}
+
+.sub-notice {
+  font-size: 26rpx;
+  color: #B8862E;
+  line-height: 1.7;
+  margin-top: 24rpx;
+}

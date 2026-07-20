@@ -17,7 +17,7 @@
 /* logo 从文字改成了图片：字形是设计稿里手写的那套，系统字体拼不出来。
    高度固定、宽度由 mode="heightFix" 按原图比例算，换图不用改样式 */
 .logo {
-  height: 132rpx;
+  height: 88rpx;
 }
 
 .search-wrap {
@@ -471,7 +471,7 @@
 
 .city-plus {
   width: 44rpx;
-  height: 132rpx;
+  height: 88rpx;
   line-height: 40rpx;
   text-align: center;
   border-radius: 50%;

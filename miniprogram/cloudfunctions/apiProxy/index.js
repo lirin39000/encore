@@ -7,8 +7,43 @@ const https = require('https')
 const cloud = require('wx-server-sdk')
 
 cloud.init()
+const db = cloud.database()
 
 const BACKEND_HOST = 'encore-production-9222.up.railway.app'
+
+// 密钥存在云数据库的一条记录里，不用云函数的环境变量。
+//
+// 本来是想用环境变量的，但微信云开发控制台那个入口很难找、智能助手写不进去、
+// 重新部署还可能把配好的值冲掉——试了几次都没成。数据库这条路稳定得多：界面好找，
+// 部署不影响，改密钥就是改一条记录。
+//
+// 这个集合的权限必须设成"仅管理端可读写"，否则小程序端能把密钥读出来，
+// 拿着它就可以绕过云函数直接冒充任意用户调后端。
+const SECRET_COLLECTION = 'server_config'
+const SECRET_KEY = 'wx_proxy_secret'
+
+// 同一个函数实例只读一次。云函数实例会被复用几分钟到几十分钟，
+// 每次请求都查库纯属浪费(而且这个值几乎不变)
+let cachedSecret = null
+
+async function getProxySecret() {
+  if (cachedSecret !== null) return cachedSecret
+  // 环境变量优先：以后微信那边的入口要是好用了，直接配上就会盖过数据库里的值
+  if (process.env.WX_PROXY_SECRET) {
+    cachedSecret = { value: process.env.WX_PROXY_SECRET, source: 'env' }
+    return cachedSecret
+  }
+  try {
+    const res = await db.collection(SECRET_COLLECTION).where({ key: SECRET_KEY }).limit(1).get()
+    cachedSecret = res.data.length
+      ? { value: String(res.data[0].value || '').trim(), source: 'db' }
+      : { value: '', source: 'db-empty' }
+  } catch (e) {
+    // 集合不存在或没权限，都当成"没配"，让后端按未登录处理，而不是抛错
+    cachedSecret = { value: '', source: 'db-error:' + (e.errCode || e.message) }
+  }
+  return cachedSecret
+}
 
 // 后端认身份用的两个头。云函数必须自己填，而且要丢掉调用方传来的同名头——
 // event.headers 是小程序端能完全控制的内容，如果原样转发出去，任何人都能塞一个
@@ -31,7 +66,8 @@ exports.main = async (event) => {
 
   // 微信保证这个 openid 是真的，客户端伪造不了
   const { OPENID } = cloud.getWXContext()
-  const proxySecret = process.env.WX_PROXY_SECRET
+  const secret = await getProxySecret()
+  const proxySecret = secret.value
 
   // 部署自检。排查 401 时要区分三种情况：云函数还是旧代码、环境变量没配、openid 拿不到。
   // 只回报"有没有"，不回报密钥本身。旧版本没有这个分支，会把 __diag 当成后端路径去请求
@@ -40,10 +76,12 @@ exports.main = async (event) => {
     return {
       statusCode: 200,
       data: {
-        version: 'with-openid-auth',
+        version: 'secret-from-db',
         hasOpenid: Boolean(OPENID),
         hasSecret: Boolean(proxySecret),
         secretLength: proxySecret ? proxySecret.length : 0,
+        // 密钥是从环境变量还是数据库拿到的，以及拿失败时的原因
+        secretSource: secret.source,
       },
     }
   }

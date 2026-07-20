@@ -10,8 +10,28 @@ cloud.init()
 
 const BACKEND_HOST = 'encore-production-9222.up.railway.app'
 
+// 后端认身份用的两个头。云函数必须自己填，而且要丢掉调用方传来的同名头——
+// event.headers 是小程序端能完全控制的内容，如果原样转发出去，任何人都能塞一个
+// 别人的 openid 让云函数替他签发，密钥就形同虚设(云函数会老老实实带上正确的密钥)
+const OPENID_HEADER = 'X-WX-Openid'
+const SECRET_HEADER = 'X-Proxy-Secret'
+
+function stripAuthHeaders(headers) {
+  const out = {}
+  for (const [k, v] of Object.entries(headers)) {
+    const lower = k.toLowerCase()
+    if (lower === OPENID_HEADER.toLowerCase() || lower === SECRET_HEADER.toLowerCase()) continue
+    out[k] = v
+  }
+  return out
+}
+
 exports.main = async (event) => {
   const { path = '/', method = 'GET', body, headers = {} } = event
+
+  // 微信保证这个 openid 是真的，客户端伪造不了
+  const { OPENID } = cloud.getWXContext()
+  const proxySecret = process.env.WX_PROXY_SECRET
 
   return new Promise((resolve) => {
     const bodyStr = body !== undefined ? JSON.stringify(body) : undefined
@@ -23,7 +43,11 @@ exports.main = async (event) => {
         method,
         headers: {
           'Content-Type': 'application/json',
-          ...headers,
+          ...stripAuthHeaders(headers),
+          // 放在展开之后，确保覆盖而不是被覆盖
+          ...(OPENID && proxySecret
+            ? { [OPENID_HEADER]: OPENID, [SECRET_HEADER]: proxySecret }
+            : {}),
           ...(bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
         },
       },

@@ -2,8 +2,9 @@ name: Daily show scrape
 
 on:
   schedule:
-    # UTC 16:00 = 北京时间次日 00:00
-    - cron: "0 16 * * *"
+    # UTC 00:00 = 北京时间 08:00。挪到早上是因为流程最后一步会给订阅用户发提醒邮件，
+    # 原来半夜 0 点跑，邮件就半夜到，手机开了邮件提醒的人会被吵醒
+    - cron: "0 0 * * *"
   workflow_dispatch: {}
 
 jobs:
@@ -39,4 +40,8 @@ jobs:
           WX_CLOUD_ENV: "cloud1-d9gwsf1jq9b490005"
           TENCENT_SECRET_ID: ${{ secrets.TENCENT_SECRET_ID }}
           TENCENT_SECRET_KEY: ${{ secrets.TENCENT_SECRET_KEY }}
+          # 邮件推送用。这两个都不是密钥：一个是发信地址，一个是邮件里验证/退订链接的
+          # 基址(必须是外网可达的后端地址)。缺了的话推送那步会静默跳过，不报错
+          ALIYUN_DM_ACCOUNT_NAME: "notice@mail.encore.monster"
+          SITE_BASE_URL: "https://encore-production-9222.up.railway.app"
         run: python daily_pipeline.py

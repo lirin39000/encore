@@ -94,8 +94,22 @@ async function syncArtists(records) {
   const toAdd = [...nameSet].filter((name) => !existing.has(name))
   console.log(`艺人名单：共 ${nameSet.size} 个，已有 ${existing.size} 个，新增 ${toAdd.length} 个`)
 
+  if (toAdd.length === 0) return
+
+  // 集合还不存在时，第一条 add() 会触发建集合。如果一上来就用 20 个并发同时
+  // 写入一个还不存在的集合，这些请求会同时抢着触发"建集合"，容易互相冲突导致
+  // 全部失败(这很可能就是之前 artists 集合迟迟没被建出来的真正原因)。
+  // 所以先单独、顺序地把第一条 add() 完成，确认集合已经建好，剩下的再并发写
+  const [firstName, ...restNames] = toAdd
+  try {
+    await db.collection('artists').add({ data: { name: firstName } })
+  } catch (e) {
+    console.error(`创建 artists 集合失败(第一条 add 就没成功): ${e.message}`)
+    throw e
+  }
+
   const { okCount, failures } = await runPool(
-    toAdd,
+    restNames,
     async (name) => {
       try {
         await db.collection('artists').add({ data: { name } })
@@ -106,7 +120,7 @@ async function syncArtists(records) {
     },
     CONCURRENCY
   )
-  console.log(`艺人名单同步完成：新增成功 ${okCount}，失败 ${failures.length}`)
+  console.log(`艺人名单同步完成：新增成功 ${okCount + 1}，失败 ${failures.length}`)
   if (failures.length > 0) {
     console.log('失败示例(最多显示5条):', failures.slice(0, 5))
   }

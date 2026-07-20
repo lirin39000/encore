@@ -59,3 +59,25 @@ def send_email(to: str, subject: str, html: str) -> None:
     # (进队列不等于对方一定收到，退信要去控制台看)
     if not response.body.env_id:
         raise RuntimeError(f"邮件发送返回异常: {response.body}")
+
+
+def send_text(to: str, subject: str, text: str) -> None:
+    """
+    发一封纯文本邮件。专门给管理员预警用：正文不带任何 HTML、不带外链，
+    这样即使给用户的富文本通知邮件被反垃圾策略拦了，这封"报告拦截"的邮件
+    本身还能发得出去，不会掉进"报错的邮件也发不出去"的死循环。
+    """
+    if not is_configured():
+        raise RuntimeError("未配置发信地址，无法发送")
+    request = dm_models.SingleSendMailRequest(
+        account_name=ALIYUN_DM_ACCOUNT_NAME,
+        from_alias=ALIYUN_DM_FROM_ALIAS,
+        address_type=1,
+        reply_to_address=False,
+        to_address=to,
+        subject=subject,
+        text_body=text,
+    )
+    response = _get_client().single_send_mail_with_options(request, util_models.RuntimeOptions())
+    if not response.body.env_id:
+        raise RuntimeError(f"邮件发送返回异常: {response.body}")

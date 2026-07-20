@@ -44,4 +44,7 @@ jobs:
           # 基址(必须是外网可达的后端地址)。缺了的话推送那步会静默跳过，不报错
           ALIYUN_DM_ACCOUNT_NAME: "notice@mail.encore.monster"
           SITE_BASE_URL: "https://encore-production-9222.up.railway.app"
+          # 推送有邮件发失败时，往这个地址发一封纯文本预警。这个流程没人盯日志，
+          # 不报警的话出问题只能等用户来问。不是密钥，就是你自己的收件邮箱
+          ADMIN_ALERT_EMAIL: "ypbgd233@126.com"
         run: python daily_pipeline.py

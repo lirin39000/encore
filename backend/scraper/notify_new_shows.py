@@ -22,6 +22,7 @@ sys.path.insert(0, str(SCRIPT_DIR.parent))
 
 from sqlalchemy import bindparam, text  # noqa: E402
 
+from app.config import ADMIN_ALERT_EMAIL  # noqa: E402
 from app.db import engine, IS_POSTGRES  # noqa: E402
 from app.services import aliyun_dm  # noqa: E402
 from app.services.email_content import new_shows_html  # noqa: E402
@@ -95,6 +96,7 @@ def main():
         print(f"订阅用户 {len(subscribers)} 人，未来演出 {len(shows)} 场", flush=True)
 
         sent = 0
+        failures = []  # [(email, 错误信息)]，跑完统一发一封预警给管理员
         for sub in subscribers:
             user_ids = sub["user_ids"]
             matched = match_shows_for_users(conn, user_ids, shows)
@@ -116,6 +118,7 @@ def main():
             except Exception as e:
                 # 一个人发失败不该拖垮整批。这次不写 notify_log，明天会重试这批演出
                 print(f"  发给 {sub['email']} 失败，跳过: {e}", flush=True)
+                failures.append((sub["email"], str(e)))
                 continue
 
             # 注意记的是 fresh 全部而不是 shown——没列出来的那些已经算在"还有 N 场"里了，
@@ -133,7 +136,37 @@ def main():
             print(f"  已发送 {sub['email']}: {len(fresh)} 场", flush=True)
             time.sleep(SEND_INTERVAL_SECONDS)
 
+    if not args.dry_run and failures:
+        alert_admin(failures, sent)
+
     print(f"完成，共发出 {sent} 封" if not args.dry_run else "dry-run 结束", flush=True)
+
+
+def alert_admin(failures, sent):
+    """
+    有邮件没发出去时，给管理员发一封纯文本预警。这个流程跑在 GitHub Actions 里，
+    日志没人盯，不主动报警的话，出问题只能等用户来问"怎么没收到"。
+
+    用纯文本发：如果失败原因正是"通知邮件被反垃圾拦了"，富文本的预警多半也会被
+    同样拦掉，纯文本没有外链、特征简单，能穿过去。
+    """
+    if not ADMIN_ALERT_EMAIL:
+        print(f"  {len(failures)} 封失败，但没配 ADMIN_ALERT_EMAIL，不发预警", flush=True)
+        return
+    lines = [
+        f"LiveFlow 演出提醒推送：{len(failures)} 封失败，{sent} 封成功。",
+        "",
+        "失败明细：",
+    ]
+    for email, err in failures:
+        lines.append(f"- {email}: {err}")
+    lines += ["", "这些用户的 notify_log 没有写入，下次推送会自动重试，不会漏。"]
+    try:
+        aliyun_dm.send_text(ADMIN_ALERT_EMAIL, "【LiveFlow】演出提醒推送有失败", "\n".join(lines))
+        print(f"  已发预警邮件到 {ADMIN_ALERT_EMAIL}", flush=True)
+    except Exception as e:
+        # 连预警都发不出去，就只能靠日志了。至少把这件事明确打出来
+        print(f"  预警邮件也发送失败: {e}", flush=True)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,10 @@ AMAP_WEB_SERVICE_KEY = os.environ["AMAP_WEB_SERVICE_KEY"]
 ALIYUN_DM_ACCOUNT_NAME = os.environ.get("ALIYUN_DM_ACCOUNT_NAME", "")
 ALIYUN_DM_FROM_ALIAS = os.environ.get("ALIYUN_DM_FROM_ALIAS", "LiveFlow")
 
+# 推送任务发信失败时，往这个地址发一封纯文本预警。留空则不发(只打印到日志)。
+# 每天的推送跑在 GitHub Actions 里，日志没人盯着，出问题只能靠这封预警知道
+ADMIN_ALERT_EMAIL = os.environ.get("ADMIN_ALERT_EMAIL", "")
+
 # 小程序通过 apiProxy 云函数访问后端时用的共享密钥。云函数那边能拿到微信验证过的
 # openid，把它放在请求头里传过来——但请求头谁都能伪造，所以必须同时带上这个密钥证明
 # "这个请求确实来自我们自己的云函数"。没设置时 openid 那条身份路径直接关闭(而不是

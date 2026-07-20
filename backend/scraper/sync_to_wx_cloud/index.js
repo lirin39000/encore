@@ -73,22 +73,25 @@ async function syncArtists(records) {
     }
   }
 
+  // 之前这里以为"add() 会自动建集合"，所以只在 get() 报 -502005 时忽略错误就往下走。
+  // 微信云数据库并不是这样：往一个不存在的集合 add() 同样会报 -502005，集合永远建不出来
+  // (artists 集合一直没出现在控制台里，就是这个原因)。改成显式创建，已存在时会报
+  // -501001 集合已存在，忽略掉即可
+  try {
+    await db.createCollection('artists')
+    console.log('artists 集合不存在，已创建')
+  } catch (e) {
+    if (e.errCode !== -501001) throw e
+  }
+
   const existing = new Set()
   const PAGE_SIZE = 1000
   let skip = 0
-  try {
-    while (true) {
-      const res = await db.collection('artists').skip(skip).limit(PAGE_SIZE).field({ name: true }).get()
-      res.data.forEach((doc) => existing.add(doc.name))
-      if (res.data.length < PAGE_SIZE) break
-      skip += PAGE_SIZE
-    }
-  } catch (e) {
-    // 集合第一次同步之前根本不存在——add() 会自动建集合，但 get() 不会，
-    // 查询一个还没建过的集合会直接报错。当成"目前一个艺人都没有"处理，
-    // 后面照常把所有艺人名 add() 进去，集合就自然被建出来了
-    if (e.errCode !== -502005) throw e
-    console.log('artists 集合还不存在，当作空集合处理(add 会自动建)')
+  while (true) {
+    const res = await db.collection('artists').skip(skip).limit(PAGE_SIZE).field({ name: true }).get()
+    res.data.forEach((doc) => existing.add(doc.name))
+    if (res.data.length < PAGE_SIZE) break
+    skip += PAGE_SIZE
   }
 
   const toAdd = [...nameSet].filter((name) => !existing.has(name))
@@ -96,15 +99,13 @@ async function syncArtists(records) {
 
   if (toAdd.length === 0) return
 
-  // 集合还不存在时，第一条 add() 会触发建集合。如果一上来就用 20 个并发同时
-  // 写入一个还不存在的集合，这些请求会同时抢着触发"建集合"，容易互相冲突导致
-  // 全部失败(这很可能就是之前 artists 集合迟迟没被建出来的真正原因)。
-  // 所以先单独、顺序地把第一条 add() 完成，确认集合已经建好，剩下的再并发写
+  // 第一条仍然单独顺序写：集合刚创建出来时立刻打 20 个并发进去偶尔会撞上
+  // "集合还没就绪"，先用一条探个路，失败了也能报出更清楚的错
   const [firstName, ...restNames] = toAdd
   try {
     await db.collection('artists').add({ data: { name: firstName } })
   } catch (e) {
-    console.error(`创建 artists 集合失败(第一条 add 就没成功): ${e.message}`)
+    console.error(`写入 artists 集合失败(第一条 add 就没成功): ${e.message}`)
     throw e
   }
 

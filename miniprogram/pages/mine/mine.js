@@ -45,8 +45,12 @@ Page({
   _searchTimer: null,
 
   onLoad() {
+    // 三个 tab 的数据都在页面一打开就并行预取。邮箱订阅这条链路特别长
+    // (小程序→云函数→Railway 美国→Supabase 印度)，不预取的话切到那个 tab 要现等几秒。
+    // 提前拉好，用户切过去时数据多半已经到了
     this.loadArtists()
     this.loadFavorites()
+    this.loadSubscription()
   },
 
   onShow() {
@@ -62,8 +66,8 @@ Page({
   switchTab(e) {
     const tab = e.currentTarget.dataset.tab
     this.setData({ tab })
+    // 收藏可能在首页点心形改过，切回来要刷新；订阅只在本页内改、已预取，不用重拉
     if (tab === 'favorites') this.loadFavorites()
-    if (tab === 'email') this.loadSubscription()
   },
 
   // ---------- 邮箱订阅 ----------

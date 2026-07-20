@@ -19,6 +19,13 @@ function call(path, method = 'GET', body) {
           reject(new Error(result.error || '网络连接失败'))
           return
         }
+        if (result.statusCode === 401) {
+          // 后端那句"请先登录"是给网页版用的，小程序压根没有登录这回事。
+          // 这里出 401 说明是配置问题(云函数没带上 openid 或密钥不匹配)，
+          // 不是用户能自己解决的事，别让人对着一个做不到的提示发愣
+          reject(new Error('身份识别失败，请稍后重试'))
+          return
+        }
         if (result.statusCode >= 400) {
           const detail = result.data && result.data.detail
           reject(new Error(detail || `请求失败: ${result.statusCode}`))

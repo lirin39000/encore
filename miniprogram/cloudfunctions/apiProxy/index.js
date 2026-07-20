@@ -33,6 +33,21 @@ exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext()
   const proxySecret = process.env.WX_PROXY_SECRET
 
+  // 部署自检。排查 401 时要区分三种情况：云函数还是旧代码、环境变量没配、openid 拿不到。
+  // 只回报"有没有"，不回报密钥本身。旧版本没有这个分支，会把 __diag 当成后端路径去请求
+  // 然后拿到 404——所以这个入口本身就能证明部署有没有生效
+  if (path === '__diag') {
+    return {
+      statusCode: 200,
+      data: {
+        version: 'with-openid-auth',
+        hasOpenid: Boolean(OPENID),
+        hasSecret: Boolean(proxySecret),
+        secretLength: proxySecret ? proxySecret.length : 0,
+      },
+    }
+  }
+
   return new Promise((resolve) => {
     const bodyStr = body !== undefined ? JSON.stringify(body) : undefined
 

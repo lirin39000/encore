@@ -46,5 +46,5 @@ jobs:
           SITE_BASE_URL: "https://encore-production-9222.up.railway.app"
           # 推送有邮件发失败时，往这个地址发一封纯文本预警。这个流程没人盯日志，
           # 不报警的话出问题只能等用户来问。不是密钥，就是你自己的收件邮箱
-          ADMIN_ALERT_EMAIL: "ypbgd233@126.com"
+          ADMIN_ALERT_EMAIL: "lirin3900@gmail.com"
         run: python daily_pipeline.py

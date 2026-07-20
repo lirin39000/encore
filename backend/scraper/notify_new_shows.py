@@ -22,10 +22,10 @@ sys.path.insert(0, str(SCRIPT_DIR.parent))
 
 from sqlalchemy import bindparam, text  # noqa: E402
 
-from app.config import ADMIN_ALERT_EMAIL  # noqa: E402
+from app.config import ADMIN_ALERT_EMAIL, EMAIL_NOTIFY_MODE  # noqa: E402
 from app.db import engine, IS_POSTGRES  # noqa: E402
 from app.services import aliyun_dm  # noqa: E402
-from app.services.email_content import new_shows_html  # noqa: E402
+from app.services.email_content import new_shows_html, new_shows_text  # noqa: E402
 from app.services.show_matching import (  # noqa: E402
     MAX_SHOWS_PER_EMAIL,
     fetch_upcoming_shows,
@@ -111,10 +111,17 @@ def main():
                       f"({', '.join(s['title'] or '?' for s in shown)})", flush=True)
                 continue
 
-            html = new_shows_html(fresh, shown, sub["unsubscribe_token"])
-            subject = f"你关注的艺人新增了 {len(fresh)} 场演出"
+            subject = "你关注的艺人有新演出"
             try:
-                aliyun_dm.send_email(sub["email"], subject, html)
+                if EMAIL_NOTIFY_MODE == "html":
+                    aliyun_dm.send_email(
+                        sub["email"], subject, new_shows_html(fresh, shown, sub["unsubscribe_token"])
+                    )
+                else:
+                    # 极简纯文本，救急用(HTML 版被反垃圾拦了)。自己内部截到前 6 场
+                    aliyun_dm.send_text(
+                        sub["email"], subject, new_shows_text(fresh, sub["unsubscribe_token"])
+                    )
             except Exception as e:
                 # 一个人发失败不该拖垮整批。这次不写 notify_log，明天会重试这批演出
                 print(f"  发给 {sub['email']} 失败，跳过: {e}", flush=True)

@@ -102,6 +102,44 @@ def new_shows_html(shows: list[dict], shown: list[dict], unsubscribe_token: str)
     return _wrap(body, footer)
 
 
+# 纯文本版每封最多列几场。实测阿里云反垃圾对这封的判定跟"体量+营销感"强相关：
+# 极简格式 8 场能过、15 场被拦，6 场稳过。留 6 是给临界点一点余量。
+# HTML 版(加白后用)不受这个限制，另有 MAX_SHOWS_PER_EMAIL=100
+TEXT_MAX_SHOWS = 6
+
+
+def new_shows_text(shows: list[dict], unsubscribe_token: str) -> str:
+    """
+    演出通知的纯文本极简版。
+
+    存在的理由：HTML 富文本版被阿里云反垃圾拦了(InvalidSendMail.Spam)。逐项实测发现，
+    拦截跟格式(纯文本/HTML)关系不大，跟"营销特征+体量"强相关——带价格、"因为你关注"、
+    多条卡片堆在一起就被判垃圾。这个版本是实测能稳定通过的最简形态：
+    只有"标题（日期，城市）"一行，不带价格、不带推荐理由，每封最多 6 场。
+
+    加白成功后把 config 里 EMAIL_NOTIFY_MODE 改回 html 就换回好看的版本，不用动这里。
+    """
+    shown = shows[:TEXT_MAX_SHOWS]
+    lines = ["你关注的艺人最近有新演出：", ""]
+    for s in shown:
+        # 只取日期的月/日，时间和场馆都省掉——越简单越不容易被判营销
+        raw = (s.get("show_time") or "").split()
+        when = raw[0] if raw else "待定"
+        if "/" in when:
+            parts = when.split("/")
+            when = f"{parts[1]}/{parts[2]}" if len(parts) >= 3 else when
+        title = s.get("title") or "未命名演出"
+        city = s.get("city_name") or ""
+        lines.append(f"{title}（{when}，{city}）" if city else f"{title}（{when}）")
+
+    rest = len(shows) - len(shown)
+    if rest > 0:
+        lines += ["", f"还有 {rest} 场，登录 LiveFlow 查看。"]
+
+    lines += ["", f"退订：{SITE_BASE_URL}/email/unsubscribe?token={unsubscribe_token}"]
+    return "\n".join(lines)
+
+
 def simple_page(title: str, message: str) -> str:
     """验证/退订链接点开后看到的落地页，纯静态一屏，不值得为它单独起个前端路由"""
     return f"""\

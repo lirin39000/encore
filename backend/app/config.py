@@ -20,6 +20,12 @@ ALIYUN_DM_FROM_ALIAS = os.environ.get("ALIYUN_DM_FROM_ALIAS", "LiveFlow")
 # 每天的推送跑在 GitHub Actions 里，日志没人盯着，出问题只能靠这封预警知道
 ADMIN_ALERT_EMAIL = os.environ.get("ADMIN_ALERT_EMAIL", "")
 
+# 演出通知邮件的形态：
+#   text = 极简纯文本(默认)。HTML 富文本版被阿里云反垃圾拦了，纯文本极简版实测能过，
+#          所以现在先用这个让功能跑起来。
+#   html = 好看的富文本版。等阿里云给发信域名加白之后，把这个环境变量设成 html 就换回去。
+EMAIL_NOTIFY_MODE = os.environ.get("EMAIL_NOTIFY_MODE", "text")
+
 # 小程序通过 apiProxy 云函数访问后端时用的共享密钥。云函数那边能拿到微信验证过的
 # openid，把它放在请求头里传过来——但请求头谁都能伪造，所以必须同时带上这个密钥证明
 # "这个请求确实来自我们自己的云函数"。没设置时 openid 那条身份路径直接关闭(而不是

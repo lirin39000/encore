@@ -116,6 +116,8 @@ Page({
         this.setData({ suggestions: res.data.map((d) => d.name) })
       } catch (e) {
         this.setData({ suggestions: [] })
+        console.error('搜索艺人失败', e)
+        wx.showToast({ title: '搜索失败: ' + (e.errMsg || e.message || '未知错误'), icon: 'none', duration: 3000 })
       }
     }, 250)
   },

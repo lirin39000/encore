@@ -49,7 +49,7 @@ export default function Home() {
     <div style={{ paddingTop: 16, paddingBottom: 40 }}>
       <div style={{ padding: '0 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-        <div style={{ fontFamily: fontSerif, fontSize: 20, fontWeight: 700, letterSpacing: 0.5 }}>Live雷达</div>
+        <div style={{ fontFamily: fontSerif, fontSize: 20, fontWeight: 700, letterSpacing: 0.5 }}>LiveFlow</div>
         {user ? (
           <div style={{ fontSize: 13, color: theme.textSec }}>{user.phone}</div>
         ) : (

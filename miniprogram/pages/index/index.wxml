@@ -1,7 +1,7 @@
 <view class="page">
   <view class="header-inner">
     <view class="header-row">
-      <text class="logo">Live雷达</text>
+      <text class="logo">LiveFlow</text>
     </view>
 
     <view class="search-wrap">

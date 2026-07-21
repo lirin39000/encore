@@ -275,4 +275,12 @@ Page({
       path: 'pages/index/index',
     }
   },
+
+  // 分享到朋友圈要单独定义，否则朋友圈入口是灰的。朋友圈打开固定进小程序首页，
+  // 不支持指定 path，所以"我的"页分享出去也是落在首页，正好符合预期
+  onShareTimeline() {
+    return {
+      title: 'LiveFlow — 找你想看的 livehouse 演出',
+    }
+  },
 })

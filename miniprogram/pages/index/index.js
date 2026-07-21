@@ -455,4 +455,12 @@ Page({
       path: 'pages/index/index',
     }
   },
+
+  // 分享到朋友圈是另一套机制，要单独定义这个方法，朋友圈那个入口才不是灰的。
+  // query 里带的参数会拼到 path 上，别人从朋友圈点进来一样落在首页
+  onShareTimeline() {
+    return {
+      title: 'LiveFlow — 找你想看的 livehouse 演出',
+    }
+  },
 })

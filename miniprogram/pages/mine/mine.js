@@ -1,4 +1,5 @@
 const { apiGet, apiPost, apiPut, apiDelete } = require('../../utils/api.js')
+const { getAll } = require('../../utils/cloudDb.js')
 const { pickFallbackGradient } = require('../../utils/fallbackGradients.js')
 const { HEART_ACTIVE, HEART_INACTIVE_MOBILE } = require('../../utils/icons.js')
 
@@ -143,8 +144,9 @@ Page({
     this.setData({ loadingArtists: true })
     try {
       const db = wx.cloud.database()
-      const res = await db.collection('followed_artists').orderBy('created_at', 'desc').limit(200).get()
-      this.setData({ artists: res.data, loadingArtists: false })
+      // getAll 翻页取全，客户端单次只给 20 条，关注超过 20 个会被吞
+      const artists = await getAll(() => db.collection('followed_artists').orderBy('created_at', 'desc'))
+      this.setData({ artists, loadingArtists: false })
     } catch (e) {
       this.setData({ loadingArtists: false })
     }
@@ -166,16 +168,16 @@ Page({
     try {
       const db = wx.cloud.database()
       const _ = db.command
-      const favRes = await db.collection('favorites').orderBy('created_at', 'desc').limit(100).get()
-      const showIds = favRes.data.map((d) => d.show_id)
+      const favs = await getAll(() => db.collection('favorites').orderBy('created_at', 'desc'))
+      const showIds = favs.map((d) => d.show_id)
       if (showIds.length === 0) {
         this.setData({ favorites: [], loadingFavorites: false })
         return
       }
-      const showsRes = await db.collection('shows').where({ id: _.in(showIds) }).limit(100).get()
-      // 按收藏时间倒序排(showsRes 顺序不保证跟 showIds 一致)
+      const showsData = await getAll(() => db.collection('shows').where({ id: _.in(showIds) }))
+      // 按收藏时间倒序排(showsData 顺序不保证跟 showIds 一致)
       const byId = {}
-      showsRes.data.forEach((s) => { byId[s.id] = s })
+      showsData.forEach((s) => { byId[s.id] = s })
       const ordered = showIds.map((id) => byId[id]).filter(Boolean).map((s) => this.decorateShow(s))
       this.setData({ favorites: ordered, loadingFavorites: false })
     } catch (e) {

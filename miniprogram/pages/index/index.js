@@ -1,4 +1,5 @@
 const cityData = require('../../data/cities.js')
+const { getAll } = require('../../utils/cloudDb.js')
 const { pickFallbackGradient } = require('../../utils/fallbackGradients.js')
 const { HEART_ACTIVE, HEART_INACTIVE_MOBILE } = require('../../utils/icons.js')
 
@@ -126,8 +127,9 @@ Page({
   async loadFavoriteIds() {
     try {
       const db = wx.cloud.database()
-      const res = await db.collection('favorites').limit(1000).get()
-      this._favoriteIds = new Set(res.data.map((d) => d.show_id))
+      // 翻页取全，否则收藏超过 20 个时，首页只有前 20 个演出的心形会是红的
+      const favs = await getAll(() => db.collection('favorites'))
+      this._favoriteIds = new Set(favs.map((d) => d.show_id))
     } catch (e) {
       // 没登录/查不到就当没收藏过任何东西，不阻塞主流程
       this._favoriteIds = new Set()
@@ -190,8 +192,9 @@ Page({
     }
 
     if (this.data.scope === 'followed') {
-      const followedRes = await db.collection('followed_artists').limit(100).get()
-      const names = followedRes.data.map((d) => d.artist_name)
+      // 翻页取全，否则关注超过 20 个艺人时，"我关注的"筛选会漏掉后面艺人的演出
+      const followed = await getAll(() => db.collection('followed_artists'))
+      const names = followed.map((d) => d.artist_name)
       if (names.length === 0) {
         return null // 没关注任何人，直接返回空结果，不用查
       }

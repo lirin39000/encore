@@ -447,4 +447,12 @@ Page({
       wx.showToast({ title: '操作失败，请重试', icon: 'none' })
     }
   },
+
+  // 定义了这个方法，右上角"转发给朋友"才可点。不设 imageUrl，微信会自动截当前页面做封面
+  onShareAppMessage() {
+    return {
+      title: 'LiveFlow — 找你想看的 livehouse 演出',
+      path: 'pages/index/index',
+    }
+  },
 })

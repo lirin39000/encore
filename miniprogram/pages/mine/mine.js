@@ -267,4 +267,12 @@ Page({
       wx.showToast({ title: '操作失败，请重试', icon: 'none' })
     }
   },
+
+  // "我的"是个人页，转发给别人时让对方落在推荐流首页，而不是分享者的私人页
+  onShareAppMessage() {
+    return {
+      title: 'LiveFlow — 找你想看的 livehouse 演出',
+      path: 'pages/index/index',
+    }
+  },
 })

@@ -63,18 +63,36 @@ def _show_row(show: dict) -> str:
     price = show.get("price") or ""
     reason = "、".join(show.get("matched_artists") or [])
 
+    poster = show.get("poster_url") or ""
     price_html = (
         f'<span style="color:{GOLD};font-size:13px;font-weight:700;">{price}</span>'
         if price else ""
     )
-    return f"""\
-      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 12px;border:1px solid {BORDER};border-radius:10px;">
-        <tr><td style="padding:14px 16px;">
+    info = f"""\
           <div style="font-size:15px;font-weight:700;color:{TEXT};line-height:1.5;">{title}</div>
           <div style="font-size:13px;color:{TEXT_SEC};margin-top:5px;line-height:1.6;">{performers}</div>
           <div style="font-size:13px;color:{TEXT};margin-top:9px;line-height:1.6;">{when}<br>{where}</div>
           <div style="margin-top:9px;">{price_html}</div>
-          <div style="font-size:12px;color:{TEXT_SEC};margin-top:9px;">因为你关注了 {reason}</div>
+          <div style="font-size:12px;color:{TEXT_SEC};margin-top:9px;">因为你关注了 {reason}</div>"""
+
+    # 海报放左边一列。用 table+width 属性而不是 CSS，邮件客户端对属性的支持比 CSS 稳。
+    # 海报是 showstart CDN 的外链图，Gmail 等默认可能要点一下"显示图片"，属正常
+    if poster:
+        return f"""\
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 12px;border:1px solid {BORDER};border-radius:10px;">
+        <tr>
+          <td width="98" valign="top" style="padding:14px 0 14px 14px;">
+            <img src="{poster}" width="84" alt="" style="width:84px;border-radius:6px;display:block;border:0;" />
+          </td>
+          <td valign="top" style="padding:14px 16px;">
+{info}
+          </td>
+        </tr>
+      </table>"""
+    return f"""\
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 12px;border:1px solid {BORDER};border-radius:10px;">
+        <tr><td style="padding:14px 16px;">
+{info}
         </td></tr>
       </table>"""
 

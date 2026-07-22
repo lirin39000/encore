@@ -54,6 +54,18 @@ def verify_email_html(verify_token: str) -> str:
     return _wrap(body, footer)
 
 
+def _poster_thumb(url: str) -> str:
+    """
+    把 showstart 原图转成 240px 缩略图。原图可能上 MB(见过 9MB 一张)，邮件里只显示 84px，
+    直接用原图会加载半天、还费流量。showstart CDN 是七牛云，加 ?imageView2/2/w/240 按宽缩到
+    240px，一张降到 ~20KB。240 是给高清屏留的余量(显示 84px，2~3 倍)。
+    """
+    if not url:
+        return url
+    sep = "&" if "?" in url else "?"
+    return f"{url}{sep}imageView2/2/w/240"
+
+
 def _show_row(show: dict) -> str:
     """一场演出在邮件里的样子。字段可能是 NULL(秀动的数据本来就不齐)，统一兜底"""
     title = show.get("title") or "未命名演出"
@@ -63,7 +75,7 @@ def _show_row(show: dict) -> str:
     price = show.get("price") or ""
     reason = "、".join(show.get("matched_artists") or [])
 
-    poster = show.get("poster_url") or ""
+    poster = _poster_thumb(show.get("poster_url") or "")
     price_html = (
         f'<span style="color:{GOLD};font-size:13px;font-weight:700;">{price}</span>'
         if price else ""

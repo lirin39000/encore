@@ -39,8 +39,8 @@ Page({
     loadingSub: true,
     emailInput: '',
     editingEmail: false,
-    subNotice: '',
     submitting: false,
+    refreshing: false, // "更新状态"按钮点击中，用来把按钮文字切成"更新中…"
   },
 
   _searchTimer: null,
@@ -62,13 +62,20 @@ Page({
     if (this.data.tab === 'favorites') {
       this.loadFavorites()
     }
+    // 邮箱验证是在邮件里点链接完成的(小程序外)，回到小程序得重拉一次才知道已验证，
+    // 否则一直显示"待验证"。sub 已存在时重拉不会闪"加载中"
+    if (this.data.tab === 'email') {
+      this.loadSubscription()
+    }
   },
 
   switchTab(e) {
     const tab = e.currentTarget.dataset.tab
     this.setData({ tab })
-    // 收藏可能在首页点心形改过，切回来要刷新；订阅只在本页内改、已预取，不用重拉
+    // 收藏可能在首页点心形改过，切回来要刷新
     if (tab === 'favorites') this.loadFavorites()
+    // 切到邮箱 tab 时重拉，捕捉刚在邮件里点过验证链接后的最新状态
+    if (tab === 'email') this.loadSubscription()
   },
 
   // ---------- 邮箱订阅 ----------
@@ -81,7 +88,8 @@ Page({
       const res = await apiGet('/me/email-subscription')
       this.setData({ sub: res.subscription, loadingSub: false })
     } catch (e) {
-      this.setData({ loadingSub: false, subNotice: e.message })
+      this.setData({ loadingSub: false })
+      wx.showToast({ title: e.message, icon: 'none' })
     }
   },
 
@@ -92,37 +100,52 @@ Page({
   async submitEmail() {
     const email = this.data.emailInput.trim()
     if (!email) return
-    this.setData({ subNotice: '', submitting: true })
+    this.setData({ submitting: true })
     try {
-      await apiPut('/me/email-subscription', { email })
-      this.setData({
-        emailInput: '',
-        editingEmail: false,
-        submitting: false,
-        subNotice: '验证邮件已发出，去邮箱点一下链接就生效了',
-      })
-      this.loadSubscription()
+      // 后端返回 {email, verified, active}，直接拿它更新界面，不再等那个超慢的 loadSubscription。
+      // 填的是已验证过的同一个邮箱时，后端原样保留 verified:true，界面不会错误显示"待验证"。
+      // 成功后不提示，界面本身会切到待验证/已验证页，下面的灰字说明也会告诉用户去点链接
+      const res = await apiPut('/me/email-subscription', { email })
+      this.setData({ emailInput: '', editingEmail: false, submitting: false, sub: res })
     } catch (e) {
-      this.setData({ submitting: false, subNotice: e.message })
+      this.setData({ submitting: false })
+      wx.showToast({ title: e.message, icon: 'none' })
+    }
+  },
+
+  // 用户在邮件里点过验证链接后，回来点"更新状态"：当场去后端查一次最新状态。
+  // 按钮切成"更新中…"，查完界面自己更新(验证成功就变成绑好邮箱的页)；还没验证就 toast 提示一下
+  async refreshVerifyStatus() {
+    if (this.data.refreshing) return
+    this.setData({ refreshing: true })
+    try {
+      const res = await apiGet('/me/email-subscription')
+      const sub = res.subscription
+      this.setData({ sub, refreshing: false })
+      if (!(sub && sub.verified)) {
+        wx.showToast({ title: '还没检测到验证，确认点过链接了吗', icon: 'none' })
+      }
+    } catch (e) {
+      this.setData({ refreshing: false })
+      wx.showToast({ title: e.message, icon: 'none' })
     }
   },
 
   async resendVerify() {
-    this.setData({ subNotice: '' })
     try {
       await apiPost('/me/email-subscription/resend')
-      this.setData({ subNotice: '验证邮件已重新发出' })
+      wx.showToast({ title: '验证邮件已重新发送', icon: 'none' })
     } catch (e) {
-      this.setData({ subNotice: e.message })
+      wx.showToast({ title: e.message, icon: 'none' })
     }
   },
 
   startEditEmail() {
-    this.setData({ editingEmail: true, emailInput: this.data.sub.email, subNotice: '' })
+    this.setData({ editingEmail: true, emailInput: this.data.sub.email })
   },
 
   cancelEditEmail() {
-    this.setData({ editingEmail: false, emailInput: '', subNotice: '' })
+    this.setData({ editingEmail: false, emailInput: '' })
   },
 
   async cancelSubscription() {
@@ -131,12 +154,15 @@ Page({
       content: '取消后邮箱不再保留，想重新订阅要再验证一次。',
     })
     if (!confirm) return
-    this.setData({ subNotice: '' })
+    // 确认后立刻把界面切回未订阅态，不干等那个跨国慢接口回来——否则"点了确认半天没反应、
+    // 反复点"。失败再回滚
+    const previous = this.data.sub
+    this.setData({ sub: null, emailInput: '', editingEmail: false })
     try {
       await apiDelete('/me/email-subscription')
-      this.setData({ sub: null, emailInput: '', editingEmail: false })
     } catch (e) {
-      this.setData({ subNotice: e.message })
+      this.setData({ sub: previous })
+      wx.showToast({ title: e.message, icon: 'none' })
     }
   },
 
@@ -219,6 +245,7 @@ Page({
     try {
       const db = wx.cloud.database()
       await db.collection('followed_artists').add({ data: { artist_name: name, created_at: Date.now() } })
+      getApp().globalData.followListChanged = true // 通知首页：关注列表变了，返回时重查演出
       this.loadArtists()
     } catch (e) {
       this.setData({ artists: this.data.artists.filter((a) => a._id !== tempId) })
@@ -233,6 +260,7 @@ Page({
     try {
       const db = wx.cloud.database()
       await db.collection('followed_artists').doc(id).remove()
+      getApp().globalData.followListChanged = true // 通知首页：关注列表变了，返回时重查演出
     } catch (e) {
       this.setData({ artists: previous })
       wx.showToast({ title: '移除失败，请重试', icon: 'none' })

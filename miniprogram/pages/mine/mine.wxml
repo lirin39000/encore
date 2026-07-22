@@ -28,8 +28,8 @@
     <view class="hint">输入后等待几秒输入框下方可能检索到相关乐队/艺人，也可以直接手动输入完整乐队/艺人名称添加（注意用官方名称，比如 Chinese Football 不能添加成"国足"，否则可能查找不成功）</view>
 
     <view class="artist-list">
-      <view wx:if="{{loadingArtists}}" class="status">加载中...</view>
-      <view wx:elif="{{artists.length === 0}}" class="status">还没有关注的艺人</view>
+      <view wx:if="{{loadingArtists && artists.length === 0}}" class="status">加载中...</view>
+      <view wx:elif="{{!loadingArtists && artists.length === 0}}" class="status">还没有关注的艺人</view>
       <view wx:for="{{artists}}" wx:key="_id" class="list-row">
         <view class="list-row-text"><text class="list-star">★</text> {{item.artist_name}}</view>
         <view class="remove-btn" data-id="{{item._id}}" bindtap="removeArtist">移除</view>
@@ -38,8 +38,8 @@
   </view>
 
   <view wx:if="{{tab === 'favorites'}}">
-    <view wx:if="{{loadingFavorites}}" class="status page-padded">加载中...</view>
-    <view wx:elif="{{favorites.length === 0}}" class="status page-padded">还没有收藏的演出</view>
+    <view wx:if="{{loadingFavorites && favorites.length === 0}}" class="status page-padded">加载中...</view>
+    <view wx:elif="{{!loadingFavorites && favorites.length === 0}}" class="status page-padded">还没有收藏的演出</view>
 
     <view wx:for="{{favorites}}" wx:key="_id" class="card">
       <view class="card-blur" style="background-image:{{item.posterBg}};"></view>
@@ -78,7 +78,7 @@
       <view class="sub-title">演出上新邮件提醒</view>
       <view class="sub-desc">「关注艺人」里的艺人有新演出时，给你发一封邮件。每天最多一封，随时可以退订。</view>
 
-      <view wx:if="{{loadingSub}}" class="status">加载中...</view>
+      <view wx:if="{{loadingSub && !sub}}" class="status">加载中...</view>
 
       <block wx:elif="{{!sub || editingEmail}}">
         <view class="add-row">
@@ -99,21 +99,22 @@
       </block>
 
       <block wx:else>
-        <view class="sub-email">
-          {{sub.email}}
-          <text wx:if="{{!sub.verified}}" class="sub-pending">待验证</text>
+        <view class="sub-email-row">
+          <view class="sub-email">
+            {{sub.email}}
+            <text wx:if="{{!sub.verified}}" class="sub-pending">待验证</text>
+          </view>
+          <view wx:if="{{!sub.verified}}" class="sub-btn sub-btn-primary" bindtap="refreshVerifyStatus">{{refreshing ? '更新中…' : '更新状态'}}</view>
         </view>
         <view class="sub-actions">
-          <view wx:if="{{!sub.verified}}" class="sub-btn" bindtap="resendVerify">重发验证邮件</view>
-          <view class="sub-btn" bindtap="startEditEmail">换邮箱</view>
+          <view wx:if="{{!sub.verified}}" class="sub-btn" bindtap="resendVerify">重新发送</view>
+          <view class="sub-btn" bindtap="startEditEmail">更换邮箱</view>
           <view class="sub-btn" bindtap="cancelSubscription">取消订阅</view>
         </view>
         <view wx:if="{{!sub.verified}}" class="sub-desc sub-desc-tight">
-          验证邮件已发到 {{sub.email}}，点开里面的链接才会开始收到提醒。没收到的话看一下垃圾邮件。
+          验证邮件已发到 {{sub.email}}，点开里面的链接后回来点"更新状态"。没收到看一下垃圾邮件。
         </view>
       </block>
-
-      <view wx:if="{{subNotice}}" class="sub-notice">{{subNotice}}</view>
     </view>
   </view>
 

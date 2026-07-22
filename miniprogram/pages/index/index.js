@@ -50,10 +50,11 @@ Page({
     scope: 'all', // all | followed
     sortBy: 'time', // time | price
     cityNames: [],
-    freeWeekdays: [],
+    // 档期默认全选(全红)=不筛选；点掉一些就按剩下的筛；至少留一个。见 toggleWeekday/buildQuery
+    freeWeekdays: [...WEEKDAYS],
     maxPrice: MAX_PRICE_CEILING,
     maxPriceCeiling: MAX_PRICE_CEILING,
-    weekdayOptions: WEEKDAYS.map((d) => ({ key: d, label: WEEKDAY_LABELS[d], active: false })),
+    weekdayOptions: WEEKDAYS.map((d) => ({ key: d, label: WEEKDAY_LABELS[d], active: true })),
 
     filterTab: 'location', // location | schedule | price
     filterPanelOpen: false,
@@ -62,15 +63,19 @@ Page({
     cityPickerOpen: false,
     citySearch: '',
     cityGroups: cityData.cityDirectory,
+    cityScrollInto: '', // 点右侧字母表时设成 city-section-X，驱动 scroll-view 跳转
+    cityListTop: 156, // "我的城市"栏底部(px)，城市列表和字母表从这里开始。打开时 JS 量出真实值
     activeFilterCount: 0,
   },
 
   noop() {},
 
+  // 括号里的数字 = 三类筛选里有几类在生效：城市加了没、档期没全选、预算没顶到 800。
+  // 每类算一个，跟"选了几个城市"无关
   updateActiveFilterCount() {
     const count =
       (this.data.cityNames.length > 0 ? 1 : 0) +
-      (this.data.freeWeekdays.length > 0 ? 1 : 0) +
+      (this.data.freeWeekdays.length < WEEKDAYS.length ? 1 : 0) +
       (this.data.maxPrice < MAX_PRICE_CEILING ? 1 : 0)
     this.setData({ activeFilterCount: count })
   },
@@ -87,7 +92,8 @@ Page({
     if (cached) {
       this.setData({
         cityNames: cached.cityNames || [],
-        freeWeekdays: cached.freeWeekdays || [],
+        // 旧缓存里空数组是老逻辑的"不筛选"，新逻辑"不筛选"是全选，所以空的当全选
+        freeWeekdays: (cached.freeWeekdays && cached.freeWeekdays.length) ? cached.freeWeekdays : [...WEEKDAYS],
         maxPrice: cached.maxPrice || MAX_PRICE_CEILING,
       })
       this.updateActiveFilterCount()
@@ -112,6 +118,13 @@ Page({
     }
     // 从"我的"页面收藏/取消收藏之后切回来，心形状态要跟着更新
     this.loadFavoriteIds().then(() => this.applyFavoriteFlags())
+    // 只有真的在"我的"页增减过关注艺人，且当前是"我关注的艺人"模式，才重查演出。
+    // 没动关注就不刷，避免每次返回都白查一次
+    const app = getApp()
+    if (app.globalData.followListChanged) {
+      app.globalData.followListChanged = false
+      if (this.data.scope === 'followed') this.loadShows()
+    }
   },
 
   onPullDownRefresh() {
@@ -178,7 +191,8 @@ Page({
     if (this.data.cityNames.length > 0) {
       conditions.push({ city_name: _.in(this.data.cityNames) })
     }
-    if (this.data.freeWeekdays.length > 0) {
+    // 全选(7 天)= 不筛选；点掉了一些(1~6 天)才按剩下的筛
+    if (this.data.freeWeekdays.length > 0 && this.data.freeWeekdays.length < WEEKDAYS.length) {
       conditions.push({ weekday: _.in(this.data.freeWeekdays) })
     }
     if (this.data.maxPrice < MAX_PRICE_CEILING) {
@@ -331,7 +345,10 @@ Page({
 
   toggleWeekday(e) {
     const day = e.currentTarget.dataset.day
-    const list = this.data.freeWeekdays.includes(day)
+    const selected = this.data.freeWeekdays.includes(day)
+    // 至少留一个：只剩最后一个还想点掉时，直接忽略，不允许全灰
+    if (selected && this.data.freeWeekdays.length === 1) return
+    const list = selected
       ? this.data.freeWeekdays.filter((d) => d !== day)
       : [...this.data.freeWeekdays, day]
     this.setData({ freeWeekdays: list }, () => {
@@ -346,6 +363,21 @@ Page({
 
   openCityPicker() {
     this.setData({ cityPickerOpen: true, cityGroups: cityData.cityDirectory })
+    // "我的城市"栏 chip 换行后高度不定，量出它的实际底部，作为下面城市列表的起始位置。
+    // 延一下等渲染完成再量
+    setTimeout(() => this.measureCityListTop(), 80)
+  },
+
+  // 量"我的城市"固定栏的底部(px)，城市列表 scroll-view 和右侧字母表的 top 都用它。
+  // chip 增删导致栏高变化时要重新量，否则列表会跟栏重叠或留缝
+  measureCityListTop() {
+    if (!this.data.cityPickerOpen) return
+    wx.createSelectorQuery()
+      .select('.city-picker-mycity')
+      .boundingClientRect((rect) => {
+        if (rect && rect.bottom) this.setData({ cityListTop: rect.bottom })
+      })
+      .exec()
   },
 
   closeCityPicker() {
@@ -367,13 +399,19 @@ Page({
     const list = this.data.cityNames.includes(name)
       ? this.data.cityNames.filter((c) => c !== name)
       : [...this.data.cityNames, name]
-    this.setData({ cityNames: list }, () => this.updateActiveFilterCount())
+    this.setData({ cityNames: list }, () => {
+      this.updateActiveFilterCount()
+      this.measureCityListTop() // chip 增减会改变"我的城市"栏的高度，重新量
+    })
   },
 
   // 筛选面板/城市选择器里面的"移除城市"：先只改本地状态，等点"确定"才真正重新查询
   removeCity(e) {
     const name = e.currentTarget.dataset.name
-    this.setData({ cityNames: this.data.cityNames.filter((c) => c !== name) }, () => this.updateActiveFilterCount())
+    this.setData({ cityNames: this.data.cityNames.filter((c) => c !== name) }, () => {
+      this.updateActiveFilterCount()
+      this.measureCityListTop()
+    })
   },
 
   // 首页"共N场演出"下面那排城市 chip 是面板之外的东西，没有"确定"这个步骤，
@@ -387,14 +425,13 @@ Page({
   },
 
   jumpToLetter(e) {
+    // 城市列表在 scroll-view 里滚，不是整页滚，所以不能用 wx.pageScrollTo(那滚的是页面)。
+    // 用 scroll-view 的 scroll-into-view：把它设成目标分组的 id，scroll-view 就滚过去。
+    // 先清空再用 nextTick 设值，保证连点同一个字母也能重新触发(值没变 scroll-into-view 不响应)
     const letter = e.currentTarget.dataset.letter
-    wx.createSelectorQuery()
-      .select('#city-section-' + letter)
-      .boundingClientRect((rect) => {
-        if (!rect) return
-        wx.pageScrollTo({ scrollTop: rect.top, duration: 0 })
-      })
-      .exec()
+    this.setData({ cityScrollInto: '' }, () => {
+      wx.nextTick(() => this.setData({ cityScrollInto: 'city-section-' + letter }))
+    })
   },
 
   previewPoster(e) {

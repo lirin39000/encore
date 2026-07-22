@@ -78,7 +78,7 @@
                 <slider
                   min="50"
                   max="{{maxPriceCeiling}}"
-                  step="10"
+                  step="50"
                   value="{{maxPrice}}"
                   bindchange="onPriceChange"
                   activeColor="#C4472E"
@@ -102,7 +102,6 @@
       <text class="total-text">共 {{total}} 场演出</text>
       <view wx:for="{{cityNames}}" wx:key="*this" class="meta-chip">
         <text>{{item}}</text>
-        <text class="meta-chip-remove" data-name="{{item}}" bindtap="removeCityImmediate">✕</text>
       </view>
     </view>
   </view>
@@ -151,20 +150,23 @@
       <input class="city-search-input" placeholder="搜索城市" value="{{citySearch}}" bindinput="onCitySearchInput" />
       <text class="cancel-btn" bindtap="closeCityPicker">取消</text>
     </view>
-    <scroll-view scroll-y class="city-picker-body" scroll-with-animation>
+    <!-- "我的城市"固定在搜索栏下方，不随城市列表滚走。chip 换行显示(像网页版)，选多了一眼看全，
+         不用横向滑。高度随 chip 行数变，所以下面列表和字母表的 top 用 JS 量出来的 cityListTop -->
+    <view class="city-picker-mycity">
+      <view class="city-section-header">
+        <text class="filter-label">我的城市</text>
+        <text class="done-btn" bindtap="closeCityPicker">完成</text>
+      </view>
+      <view class="mycity-chip-row">
+        <text wx:if="{{cityNames.length === 0}}" class="filter-hint">还没有选择城市，不限则显示全部</text>
+        <view wx:for="{{cityNames}}" wx:key="*this" class="chip">
+          {{item}}
+          <text class="chip-remove" data-name="{{item}}" catchtap="removeCity">✕</text>
+        </view>
+      </view>
+    </view>
+    <scroll-view scroll-y class="city-picker-body" scroll-with-animation scroll-into-view="{{cityScrollInto}}" style="top: {{cityListTop}}px">
       <view class="city-picker-scroll-inner">
-        <view class="city-section-header">
-          <text class="filter-label">我的城市</text>
-          <text class="done-btn" bindtap="closeCityPicker">完成</text>
-        </view>
-        <view class="city-chip-row">
-          <text wx:if="{{cityNames.length === 0}}" class="filter-hint">还没有选择城市，不限则显示全部</text>
-          <view wx:for="{{cityNames}}" wx:key="*this" class="chip">
-            {{item}}
-            <text class="chip-remove" data-name="{{item}}" catchtap="removeCity">✕</text>
-          </view>
-        </view>
-
         <block wx:for="{{cityGroups}}" wx:key="letter" wx:for-item="group">
           <view id="city-section-{{group.letter}}" class="city-letter">{{group.letter}}</view>
           <view
@@ -184,7 +186,7 @@
       </view>
     </scroll-view>
 
-    <view wx:if="{{!citySearch}}" class="letter-index">
+    <view wx:if="{{!citySearch}}" class="letter-index" style="top: {{cityListTop}}px">
       <text
         wx:for="{{cityGroups}}"
         wx:key="letter"

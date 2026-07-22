@@ -328,11 +328,17 @@
   align-items: center;
   gap: 12rpx;
   font-size: 26rpx;
-  padding: 12rpx 20rpx 12rpx 28rpx;
+  /* 高度钉成 64rpx，跟旁边"加号圆圈"(add-city-circle 也是 64rpx)一样高。
+     否则 chip 比圆圈矮零点几像素，align-items:center 把 chip 往下挪半像素，
+     顶边就被次像素取整糊掉——这正是"城市只有 1-2 个(圆圈跟 chip 同行)时上边缘被遮"的原因 */
+  height: 64rpx;
+  box-sizing: border-box;
+  padding: 0 20rpx 0 28rpx;
   border-radius: 16rpx;
   background: #2A211C;
   border: 1rpx solid rgba(255, 255, 255, 0.14);
   color: #F2ECE1;
+  flex-shrink: 0; /* 横向滚动的"我的城市"里不被压扁 */
 }
 
 .chip-remove {
@@ -426,8 +432,36 @@
   white-space: nowrap;
 }
 
+/* "我的城市"固定栏：搜索栏(140rpx)下方。chip 换行、高度随行数变(不再固定)。
+   绝对定位 + 不透明底色，盖住下面滚动的城市列表，滚到哪都看得见已选中的城市 */
+.city-picker-mycity {
+  position: absolute;
+  top: 140rpx;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  padding: 20rpx 32rpx;
+  background: #1B1512;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.14);
+  z-index: 5;
+}
+
+/* chip 换行显示，像网页版，选多了自动折到下一行、一眼看全 */
+.mycity-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16rpx;
+}
+
 .city-picker-body {
-  flex: 1;
+  /* scroll-view 必须有确定高度才能在内部滚动。flex:1 和 calc(100vh-…) 在这个基础库版本里
+     都没给到有效高度，改用绝对定位卡死上下边界。top 是"我的城市"栏的实际底部，由 JS 量出来
+     (chip 换行后高度不定)，通过内联 style 传进来；bottom:0 贴到底 */
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 .city-picker-scroll-inner {
@@ -470,9 +504,11 @@
 }
 
 .city-plus {
+  /* 宽高必须相等，border-radius:50% 才是正圆；之前 height 是 88rpx，圆被拉成椭圆，
+     而且把整行撑到 70px。对齐网页版的 22×22px(=44rpx) */
   width: 44rpx;
-  height: 88rpx;
-  line-height: 40rpx;
+  height: 44rpx;
+  line-height: 44rpx;
   text-align: center;
   border-radius: 50%;
   background: #2A211C;
@@ -489,8 +525,14 @@
 .letter-index {
   position: absolute;
   right: 28rpx;
-  top: 120rpx;
-  bottom: 16rpx;
+  /* top 由内联 style 传入(=城市列表起始位置 cityListTop)，这里的值只是兜底。
+     bottom 抬到 140rpx 让开底部 tab 栏——之前是 16rpx，字母列整列偏下、"我的城市"
+     加到 3 行把字母列往下挤时，最底下的 Z 就缩到 tab 栏后面被遮住了 */
+  top: 320rpx;
+  bottom: 140rpx;
+  /* scroll-view 改成绝对定位后铺满整个区域，会盖住字母表拦截点击。
+     抬一层 z-index，让字母表浮在 scroll-view 之上，恢复可点 */
+  z-index: 10;
   display: flex;
   flex-direction: column;
   justify-content: center;

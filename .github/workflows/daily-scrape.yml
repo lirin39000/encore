@@ -47,4 +47,7 @@ jobs:
           # 推送有邮件发失败时，往这个地址发一封纯文本预警。这个流程没人盯日志，
           # 不报警的话出问题只能等用户来问。不是密钥，就是你自己的收件邮箱
           ADMIN_ALERT_EMAIL: "lirin3900@gmail.com"
+          # 阿里云反垃圾团队 2026-07-21 人工加白了发信域名，富文本版不再被拦，换回好看的 HTML 版。
+          # 万一以后又被拦，改回 text 即可
+          EMAIL_NOTIFY_MODE: "html"
         run: python daily_pipeline.py

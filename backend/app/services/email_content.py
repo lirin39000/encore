@@ -3,20 +3,22 @@
 QQ 邮箱)会把 head 里的样式表整段丢掉，只有内联样式活得下来。同理不用 flex/grid，
 用 table 布局，这是邮件 HTML 至今还得这么写的原因。
 
-配色跟网页版 frontend/src/theme/theme.ts 保持一致，但底色改成浅色：深色背景的邮件
-在不少客户端的浅色模式下会被强行反色，反而更难看。
+浅色主题：邮箱本身多是白底，深色邮件跟它不搭，所以用浅底。版式(海报在右、★艺人、
+橙色价格、查看详情链接)不变，只是配色走浅色。
 """
 from app.config import SITE_BASE_URL
 
 ACCENT = "#C4472E"
 GOLD = "#B8862E"
-TEXT = "#2A2320"
-TEXT_SEC = "#8A8078"
+TEXT = "#2A2320"       # 深文字(浅底上)
+TEXT_SEC = "#8A8078"   # 次要文字
 BORDER = "#E8E1D7"
+BG = "#F7F3EC"         # 外层浅底
+INNER_BG = "#FFFFFF"   # 外壳内层白
 
 _WRAPPER = """\
-<div style="background:#F7F3EC;padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Noto Sans SC','Helvetica Neue',Arial,sans-serif;">
-  <div style="max-width:520px;margin:0 auto;background:#FFFFFF;border:1px solid {border};border-radius:14px;overflow:hidden;">
+<div style="background:{bg};padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Noto Sans SC','Helvetica Neue',Arial,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;background:{inner_bg};border:1px solid {border};border-radius:14px;overflow:hidden;">
     <div style="padding:20px 24px;border-bottom:1px solid {border};">
       <span style="font-size:17px;font-weight:700;color:{accent};letter-spacing:0.5px;">LiveFlow</span>
     </div>
@@ -32,7 +34,10 @@ _WRAPPER = """\
 
 
 def _wrap(body: str, footer: str) -> str:
-    return _WRAPPER.format(border=BORDER, accent=ACCENT, text_sec=TEXT_SEC, body=body, footer=footer)
+    return _WRAPPER.format(
+        bg=BG, inner_bg=INNER_BG, border=BORDER, accent=ACCENT, text_sec=TEXT_SEC,
+        body=body, footer=footer,
+    )
 
 
 def verify_email_html(verify_token: str) -> str:
@@ -54,58 +59,77 @@ def verify_email_html(verify_token: str) -> str:
     return _wrap(body, footer)
 
 
+# 演出卡的配色（浅色）。版式照网页版 ShowCard，但配色走浅底：白色外壳上用极浅暖色卡 + 边框
+# 区分层次
+CARD_BG = "#FAF6EF"
+CARD_TEXT = "#2A2320"
+CARD_TEXT_SEC = "#6B615A"
+CARD_TEXT_MUTED = "#9A9089"
+PRICE = "#D0532E"  # 价格橙，浅底上比网页版那个 #E0664A 稍深一点更清楚
+
+
 def _poster_thumb(url: str) -> str:
     """
-    把 showstart 原图转成 240px 缩略图。原图可能上 MB(见过 9MB 一张)，邮件里只显示 84px，
-    直接用原图会加载半天、还费流量。showstart CDN 是七牛云，加 ?imageView2/2/w/240 按宽缩到
-    240px，一张降到 ~20KB。240 是给高清屏留的余量(显示 84px，2~3 倍)。
+    邮件里内嵌显示用的缩略图。原图可能上 MB(见过 9MB 一张)，直接内嵌会下几百 MB、加载
+    卡死。showstart CDN 是七牛云，加 ?imageView2/2/w/360 按宽缩到 360px(卡里显示 ~112px，
+    高清屏 3 倍够清晰)，一张 ~40KB。点击看大图走的是未压缩原图(见 _show_row 里的外链)。
     """
     if not url:
         return url
     sep = "&" if "?" in url else "?"
-    return f"{url}{sep}imageView2/2/w/240"
+    return f"{url}{sep}imageView2/2/w/360"
 
 
 def _show_row(show: dict) -> str:
-    """一场演出在邮件里的样子。字段可能是 NULL(秀动的数据本来就不齐)，统一兜底"""
+    """
+    一场演出的卡片，照网页版 ShowCard 的样式：深色卡、海报在右、★艺人、橙色价格、
+    "查看详情"链接。字段可能是 NULL(秀动数据本来就不齐)，统一兜底。
+    海报内嵌用缩略图(快)，外面套一个指向原图的链接——点一下就看未压缩大图。
+    """
+    show_id = show.get("id")
     title = show.get("title") or "未命名演出"
-    performers = show.get("performers") or ""
+    performers = show.get("performers") or "艺人待定"
     when = show.get("show_time") or "时间待定"
-    where = " · ".join(x for x in [show.get("city_name"), show.get("site_name")] if x) or "场地待定"
+    where = " · ".join(x for x in [show.get("site_name"), show.get("city_name")] if x) or "场地待定"
     price = show.get("price") or ""
     reason = "、".join(show.get("matched_artists") or [])
+    full_poster = show.get("poster_url") or ""
+    thumb = _poster_thumb(full_poster)
 
-    poster = _poster_thumb(show.get("poster_url") or "")
     price_html = (
-        f'<span style="color:{GOLD};font-size:13px;font-weight:700;">{price}</span>'
+        f'<div style="margin-top:9px;"><span style="font-size:18px;font-weight:700;color:{PRICE};">{price}</span></div>'
         if price else ""
     )
+    detail_link = (
+        f'<div style="margin-top:9px;"><a href="https://www.showstart.com/event/{show_id}" '
+        f'style="font-size:13px;font-weight:700;color:{GOLD};text-decoration:none;">查看详情 →</a></div>'
+        if show_id else ""
+    )
     info = f"""\
-          <div style="font-size:15px;font-weight:700;color:{TEXT};line-height:1.5;">{title}</div>
-          <div style="font-size:13px;color:{TEXT_SEC};margin-top:5px;line-height:1.6;">{performers}</div>
-          <div style="font-size:13px;color:{TEXT};margin-top:9px;line-height:1.6;">{when}<br>{where}</div>
-          <div style="margin-top:9px;">{price_html}</div>
-          <div style="font-size:12px;color:{TEXT_SEC};margin-top:9px;">因为你关注了 {reason}</div>"""
+          <div style="font-family:'Noto Serif SC',serif;font-size:16px;font-weight:600;color:{CARD_TEXT};line-height:1.4;">{title}</div>
+          <div style="font-size:13px;color:{CARD_TEXT_SEC};margin-top:6px;line-height:1.5;"><span style="color:{GOLD};">★</span> {performers}</div>
+          <div style="font-size:13px;color:{CARD_TEXT_SEC};margin-top:5px;line-height:1.5;">{when}<br>{where}</div>
+{price_html}
+{detail_link}
+          <div style="font-size:12px;color:{CARD_TEXT_MUTED};margin-top:9px;">因为你关注了 {reason}</div>"""
 
-    # 海报放左边一列。用 table+width 属性而不是 CSS，邮件客户端对属性的支持比 CSS 稳。
-    # 海报是 showstart CDN 的外链图，Gmail 等默认可能要点一下"显示图片"，属正常
-    if poster:
-        return f"""\
-      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 12px;border:1px solid {BORDER};border-radius:10px;">
-        <tr>
-          <td width="98" valign="top" style="padding:14px 0 14px 14px;">
-            <img src="{poster}" width="84" alt="" style="width:84px;border-radius:6px;display:block;border:0;" />
-          </td>
-          <td valign="top" style="padding:14px 16px;">
-{info}
-          </td>
-        </tr>
-      </table>"""
+    poster_cell = (
+        f"""\
+          <td width="128" valign="top" style="padding:14px 16px 14px 0;">
+            <a href="{full_poster}" style="text-decoration:none;">
+              <img src="{thumb}" width="112" alt="" style="width:112px;border-radius:8px;display:block;border:0;" />
+            </a>
+          </td>"""
+        if thumb else ""
+    )
     return f"""\
-      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 12px;border:1px solid {BORDER};border-radius:10px;">
-        <tr><td style="padding:14px 16px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 14px;background:{CARD_BG};border:1px solid {BORDER};border-radius:12px;overflow:hidden;">
+        <tr>
+          <td valign="top" style="padding:14px 12px 16px 16px;">
 {info}
-        </td></tr>
+          </td>
+{poster_cell}
+        </tr>
       </table>"""
 
 

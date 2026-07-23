@@ -41,6 +41,7 @@ Page({
     editingEmail: false,
     submitting: false,
     refreshing: false, // "更新状态"按钮点击中，用来把按钮文字切成"更新中…"
+    subLoaded: false,  // 订阅状态是否已经取到过(哪怕结果是"没订阅")。用它而不是 sub 判断要不要显示"加载中"
   },
 
   _searchTimer: null,
@@ -83,10 +84,20 @@ Page({
   // 身份由 apiProxy 云函数用微信验证过的 openid 提供，这里不用管登录。
 
   async loadSubscription() {
+    // 先拿上次缓存的状态立刻显示，避免每次进邮箱 tab 都干等几秒(那条跨国链路本来就慢)。
+    // 缓存包一层 {sub}，这样能区分"从没加载过"(取到 '')和"加载过但没订阅"(取到 {sub:null})——
+    // 后者也不该再显示"加载中"，直接显示输入框
+    if (!this.data.subLoaded) {
+      const cached = wx.getStorageSync('emailSubCache')
+      if (cached && typeof cached === 'object') {
+        this.setData({ sub: cached.sub || null, subLoaded: true })
+      }
+    }
     this.setData({ loadingSub: true })
     try {
       const res = await apiGet('/me/email-subscription')
-      this.setData({ sub: res.subscription, loadingSub: false })
+      this.setData({ sub: res.subscription, loadingSub: false, subLoaded: true })
+      wx.setStorageSync('emailSubCache', { sub: res.subscription })
     } catch (e) {
       this.setData({ loadingSub: false })
       wx.showToast({ title: e.message, icon: 'none' })
@@ -106,7 +117,8 @@ Page({
       // 填的是已验证过的同一个邮箱时，后端原样保留 verified:true，界面不会错误显示"待验证"。
       // 成功后不提示，界面本身会切到待验证/已验证页，下面的灰字说明也会告诉用户去点链接
       const res = await apiPut('/me/email-subscription', { email })
-      this.setData({ emailInput: '', editingEmail: false, submitting: false, sub: res })
+      this.setData({ emailInput: '', editingEmail: false, submitting: false, sub: res, subLoaded: true })
+      wx.setStorageSync('emailSubCache', { sub: res })
     } catch (e) {
       this.setData({ submitting: false })
       wx.showToast({ title: e.message, icon: 'none' })
@@ -121,7 +133,8 @@ Page({
     try {
       const res = await apiGet('/me/email-subscription')
       const sub = res.subscription
-      this.setData({ sub, refreshing: false })
+      this.setData({ sub, refreshing: false, subLoaded: true })
+      wx.setStorageSync('emailSubCache', { sub })
       if (!(sub && sub.verified)) {
         wx.showToast({ title: '还没检测到验证，确认点过链接了吗', icon: 'none' })
       }
@@ -157,11 +170,13 @@ Page({
     // 确认后立刻把界面切回未订阅态，不干等那个跨国慢接口回来——否则"点了确认半天没反应、
     // 反复点"。失败再回滚
     const previous = this.data.sub
-    this.setData({ sub: null, emailInput: '', editingEmail: false })
+    this.setData({ sub: null, emailInput: '', editingEmail: false, subLoaded: true })
+    wx.setStorageSync('emailSubCache', { sub: null })
     try {
       await apiDelete('/me/email-subscription')
     } catch (e) {
       this.setData({ sub: previous })
+      wx.setStorageSync('emailSubCache', { sub: previous })
       wx.showToast({ title: e.message, icon: 'none' })
     }
   },

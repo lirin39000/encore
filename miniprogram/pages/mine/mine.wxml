@@ -78,7 +78,7 @@
       <view class="sub-title">演出上新邮件提醒</view>
       <view class="sub-desc">「关注艺人」里的艺人有新演出时，给你发一封邮件。每天最多一封，随时可以退订。</view>
 
-      <view wx:if="{{loadingSub && !sub}}" class="status">加载中...</view>
+      <view wx:if="{{loadingSub && !subLoaded}}" class="status">加载中...</view>
 
       <block wx:elif="{{!sub || editingEmail}}">
         <view class="add-row">

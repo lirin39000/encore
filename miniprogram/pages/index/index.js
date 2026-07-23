@@ -247,7 +247,13 @@ Page({
         total: countRes.total,
       })
     } catch (e) {
-      this.setData({ loading: false, error: e.errMsg || '加载失败' })
+      // 从朋友圈分享打开是"单页模式"，微信不给云数据库授权，会 PERMISSION_DENIED。
+      // 别把这种原始报错甩给用户，引导去右下角"前往小程序"看完整内容
+      const msg = e.errMsg || e.message || ''
+      const friendly = /PERMISSION_DENIED|Unauthenticated/i.test(msg)
+        ? '朋友圈里只能预览，点右下角「前往小程序」查看完整演出'
+        : (msg || '加载失败')
+      this.setData({ loading: false, error: friendly })
     }
   },
 

@@ -76,6 +76,17 @@ def create_postgres_schema(pg_engine):
         conn.execute(text("CREATE INDEX IF NOT EXISTS idx_shows_show_dt ON shows(show_dt)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS idx_shows_price_min ON shows(price_min)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS idx_shows_venue_id ON shows(venue_id)"))
+
+        # first_seen = 这场演出第一次进 Postgres 的时间，用来判断"今天才上新的"。
+        # 只在 Postgres 里维护(本地 SQLite 每次都从零重建，追踪不了)：
+        #   - 新演出 INSERT 时靠 DEFAULT now() 自动填当前时间(copy_table 的 INSERT 不带这列)
+        #   - 已存在的演出 UPDATE 时不动它(set_clause 里也没有这列)
+        # 关键安全点：加列时存量的几千场必须回填成很老的日期，否则会被当成"刚上新"给全员狂发。
+        # 三步都幂等，每次跑无害：ADD 只第一次生效，UPDATE 之后没有 NULL 行了影响 0 行，SET DEFAULT 重复设无妨
+        conn.execute(text("ALTER TABLE shows ADD COLUMN IF NOT EXISTS first_seen TIMESTAMP"))
+        conn.execute(text("UPDATE shows SET first_seen = '2000-01-01' WHERE first_seen IS NULL"))
+        conn.execute(text("ALTER TABLE shows ALTER COLUMN first_seen SET DEFAULT now()"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS idx_shows_first_seen ON shows(first_seen)"))
     print("Postgres 表结构就绪")
 
 

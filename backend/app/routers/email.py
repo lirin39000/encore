@@ -13,7 +13,7 @@ from sqlmodel import text
 
 from app.db import engine
 from app.services.email_content import simple_page
-from app.services.show_matching import seed_notify_log
+
 
 router = APIRouter(prefix="/email")
 
@@ -55,16 +55,13 @@ def verify_email(token: str = ""):
             ),
             {"t": True, "now": datetime.now().isoformat(), "uid": user_id},
         )
-        # 把此刻已经匹配上的存量演出标成"已通知"，否则明天第一封提醒会把库里
-        # 几十上百场旧演出当成"上新"一次性发过去
-        seeded = seed_notify_log(conn, user_id)
+        # 不再 seed 存量演出：推送只发"最近才上新的"(靠 first_seen 判断)，不会把库里旧演出
+        # 补发出去，所以不需要预先标记；而且 seed 会连刚上新的也标掉，反而让新用户漏收
         conn.commit()
 
     message = (
-        f"以后你关注的艺人有新演出，我们会发到 {row['email']}。<br>"
-        f"当前已关注艺人对应的 {seeded} 场演出不会重复提醒，可以直接去网站里看。"
-        if seeded
-        else f"以后你关注的艺人有新演出，我们会发到 {row['email']}。"
+        f"以后你关注的艺人有新演出，我们会发到 {row['email']}。"
+        "已经在售的演出可以直接去网站或小程序里看。"
     )
     return HTMLResponse(simple_page("订阅成功", message))
 

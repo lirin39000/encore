@@ -22,20 +22,31 @@ from app.text_normalize import normalize_name
 MAX_SHOWS_PER_EMAIL = 80
 
 
-def fetch_upcoming_shows(conn) -> list[dict]:
-    """未来的、有艺人信息的演出。所有订阅用户共用这一份，不用每个人查一次库"""
+def fetch_upcoming_shows(conn, new_since=None, exclude_sold_out=False) -> list[dict]:
+    """
+    未来的、有艺人信息的演出。所有订阅用户共用这一份，不用每个人查一次库。
+
+    推送任务传 new_since(ISO 时间串) 只取"这时间之后第一次入库"的演出——即今天才上新的，
+    避免把存量老演出、以及用户新关注艺人时的历史演出补发出去。exclude_sold_out=True 时
+    跳过已售罄(sold_out=2)。这两个参数不传就是"全部未来演出"(留给别的用途)。
+    """
     today_cn = datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
+    conditions = [
+        "performers IS NOT NULL", "performers != ''",
+        "(show_dt IS NULL OR show_dt >= :today)",
+    ]
+    params = {"today": today_cn}
+    if new_since is not None:
+        conditions.append("first_seen >= :new_since")
+        params["new_since"] = new_since
+    if exclude_sold_out:
+        conditions.append("(sold_out IS NULL OR sold_out != 2)")
     rows = conn.execute(
         text(
-            """
-            SELECT id, title, performers, price, show_time, show_dt, weekday,
-                   site_name, city_name, poster_url
-            FROM shows
-            WHERE performers IS NOT NULL AND performers != ''
-              AND (show_dt IS NULL OR show_dt >= :today)
-            """
+            "SELECT id, title, performers, price, show_time, show_dt, weekday, "
+            "site_name, city_name, poster_url FROM shows WHERE " + " AND ".join(conditions)
         ),
-        {"today": today_cn},
+        params,
     ).mappings().all()
     return [dict(r) for r in rows]
 

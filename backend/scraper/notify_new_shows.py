@@ -14,7 +14,7 @@
 import argparse
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -91,9 +91,11 @@ def main():
             print("没有已验证且开启订阅的用户", flush=True)
             return
 
-        # 所有人共用同一份演出快照，不用每个人查一次库
-        shows = fetch_upcoming_shows(conn)
-        print(f"订阅用户 {len(subscribers)} 人，未来演出 {len(shows)} 场", flush=True)
+        # 只推"今天才上新的"演出：first_seen 在最近 26 小时内(pipeline 每天跑一次，26h 给点缓冲)。
+        # 加上"售罄不推"。这样用户新关注艺人时不会补发历史演出，也不会推早已售罄的
+        new_since = (datetime.now() - timedelta(hours=26)).isoformat()
+        shows = fetch_upcoming_shows(conn, new_since=new_since, exclude_sold_out=True)
+        print(f"订阅用户 {len(subscribers)} 人，最近 26h 新上演出 {len(shows)} 场", flush=True)
 
         sent = 0
         failures = []  # [(email, 错误信息)]，跑完统一发一封预警给管理员

@@ -1,134 +1,151 @@
 /* ============================================================
    vision.js —— 摄像头识别层
-   职责：把摄像头画面变成「世界坐标」，交给 app.js 画受力图。
-   这一层不做任何物理计算。
 
-   两件事：
-     1. 绿色识别卡  -> 两个滑轮的位置（颜色 + 形状 + 空间 + 时间 四层过滤）
-     2. MediaPipe   -> 人的挂点/重心位置
-   两者都通过「单应性变换」从画面像素换算到现实中的米。
+   只做两件事：
+     1. 两个滑轮的位置：在摄像头画面上点一下定下来
+     2. 人的位置：MediaPipe 实时捕捉躯干
+
+   没有标定，也不需要量任何尺寸。
+
+   原理：摄像头正对龙门架拍摄时，画面到现实只差一个缩放，
+   而缩放不改变角度。受力只跟绳的方向（角度）有关，
+   所以直接在画面坐标里量角度就是对的。
+
+   唯一要注意的是**像素长宽比**：画面归一化坐标 x、y 各自被压到 0~1，
+   16:9 的画面横向就被压扁了，角度会错。所以下面统一把 x 乘上长宽比，
+   换算到「以画面高度为单位」的方形坐标系里再算。
    ============================================================ */
 
 const vision = {
-  on: false,            // 摄像头是否已开
-  ready: false,         // 标定是否完成
+  on: false,
+  ready: false,          // 两个滑轮都点过了
   video: null,
   err: '',
 
-  // 标定（按「摄像头正对龙门架、无透视畸变」处理）
-  //
-  // 这个前提下画面到现实是一个「相似变换」＝ 缩放 + 旋转 + 平移。
-  // 相似变换保角，所以：
-  //   · 画面上量到的角度就是真实角度
-  //   · 缩放比例在角度里会完全约掉 —— 于是**不需要量任何尺寸**
-  // 两个横梁端点只用来确定「水平方向在画面里是哪个方向」（消掉摄像头的侧倾）。
-  calib: {
-    pts: [],            // [{x,y}] 横梁左端、横梁右端（归一化 0~1）
-    pulleyPts: [],      // [{x,y}] 两个滑轮在画面上的位置
-    map: null,          // 画面 -> 世界
-    inv: null,          // 世界 -> 画面
-  },
+  pulleyPts: [],         // 点选的两个滑轮，画面归一化坐标 [{x,y}]
+  origin: null,          // 画面 -> 世界 的平移基准（点完滑轮后确定）
 
-  // 绿卡识别参数（现场可调）
-  // arMin 放到 0.7：实际贴的卡未必是 2:1，方形卡也要能过
-  green: { hMin: 75, hMax: 175, sMin: 0.35, vMin: 0.22,
-           minArea: 25, maxArea: 6000, fillMin: 0.60,
-           arMin: 0.70, arMax: 3.60 },
-
-  // ROI：以横梁为基准，向上 up 米、向下 down 米的横带
-  roi: { up: 0.25, down: 0.75 },
-
-  // 识别结果（世界坐标，米）
-  out: { pulleys: [null, null], persons: [], maskCount: 0, poseCount: 0 },
-
-  showMask: false,
+  out: { persons: [], poseCount: 0 },
   fps: 0,
 };
 
-/* ============================================================
-   相似变换（缩放 + 旋转 + 平移）
+/* 每「一个画面高度」代表现实中多少米。
+   这个值只影响画面大小，不影响任何角度和受力——因为缩放在角度里会约掉。 */
+const METERS_PER_FRAME_H = 3.0;
 
-   由两个横梁端点确定。横梁在现实中是水平的，所以这两点在画面上的
-   连线方向 = 现实水平方向，用它就能把摄像头的侧倾转正。
+/* 画面归一化坐标 -> 方形坐标（单位：画面高度），消除长宽比造成的角度畸变 */
+function squarePt(p) {
+  const v = vision.video;
+  const aspect = (v && v.videoHeight) ? v.videoWidth / v.videoHeight : 16 / 9;
+  return { x: p.x * aspect, y: p.y };
+}
 
-   缩放比例取多少**不影响任何角度**（相似变换保角，比例在角度里约掉），
-   所以下面用的 state.span / state.beamY 只是画图用的坐标而已，
-   不需要和实物量出来的尺寸一致。
-   ============================================================ */
-function rebuildCalibration() {
-  const c = vision.calib;
-  if (c.pts.length < 2) { c.map = c.inv = null; vision.ready = false; return false; }
+/* 画面归一化坐标 -> 世界坐标（米，y 向上）*/
+function imgToWorld(p) {
+  const o = vision.origin;
+  if (!o) return null;
+  const s = squarePt(p);
+  return { x: (s.x - o.x) * METERS_PER_FRAME_H,
+           y: o.worldY - (s.y - o.y) * METERS_PER_FRAME_H };
+}
 
-  const [p1, p2] = c.pts;
-  const dpx = p2.x - p1.x, dpy = -(p2.y - p1.y);   // 画面 y 向下，翻成向上
-  const den = dpx * dpx + dpy * dpy;
-  if (den < 1e-9) { c.map = c.inv = null; vision.ready = false; return false; }
-
-  const w1 = { x: -state.span / 2, y: state.beamY };
-  const dwx = state.span, dwy = 0;
-  const a = (dwx * dpx + dwy * dpy) / den;         // 缩放 * cos(旋转)
-  const b = (dwy * dpx - dwx * dpy) / den;         // 缩放 * sin(旋转)
-
-  c.map = p => {
-    const dx = p.x - p1.x, dy = -(p.y - p1.y);
-    return { x: w1.x + a * dx - b * dy, y: w1.y + b * dx + a * dy };
-  };
-  const det = a * a + b * b;
-  c.inv = w => {
-    const dx = w.x - w1.x, dy = w.y - w1.y;
-    return { x: p1.x + (a * dx + b * dy) / det, y: p1.y - (-b * dx + a * dy) / det };
-  };
+/* 记录一个滑轮点选。点满两个就确定基准，让两滑轮中点落在画面里合适的位置 */
+function setPulleyPick(p) {
+  vision.pulleyPts.push(p);
+  if (vision.pulleyPts.length < 2) return false;
+  vision.pulleyPts = vision.pulleyPts.slice(-2);
+  const a = squarePt(vision.pulleyPts[0]), b = squarePt(vision.pulleyPts[1]);
+  vision.origin = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, worldY: 2.60 };
   vision.ready = true;
   return true;
 }
 
-/* 把已点选的两个滑轮换算成世界坐标，写进 state */
-function applyPulleyPicks() {
-  const c = vision.calib;
-  if (!vision.ready || c.pulleyPts.length < 2) return false;
-  const w = c.pulleyPts.map(c.map).sort((m, n) => m.x - n.x);   // 左右按 x 排
-  state.pulleyX = [w[0].x, w[1].x];
-  state.pulleyY = [w[0].y, w[1].y];
-  return true;
+function clearPulleyPicks() {
+  vision.pulleyPts = [];
+  vision.origin = null;
+  vision.ready = false;
 }
 
-const img2world = p => vision.calib.map ? vision.calib.map(p) : null;
-const world2img = p => vision.calib.inv ? vision.calib.inv(p) : null;
+/* 两个滑轮的世界坐标，按左右排好 */
+function pulleyWorld() {
+  if (!vision.ready) return null;
+  return vision.pulleyPts.map(imgToWorld).sort((m, n) => m.x - n.x);
+}
 
 /* ============================================================
    摄像头
    ============================================================ */
-const proc = document.createElement('canvas');
-const pctx = proc.getContext('2d', { willReadFrequently: true });
-const PROC_W = 480;                      // 处理分辨率，兼顾速度与精度
+async function listCameras() {
+  try {
+    return (await navigator.mediaDevices.enumerateDevices())
+      .filter(d => d.kind === 'videoinput');
+  } catch (e) { return []; }
+}
 
-async function startCamera() {
+/* 等到真的有画面帧。只看 play() 有没有 resolve 是不够的——摄像头被别的
+   程序占用时 play() 照样成功，但一帧都不来，表现就是全黑。
+   用 setTimeout 而不是 rAF：窗口在后台时 rAF 会被暂停，那样这里会永远挂住。 */
+function waitForFrames(v, ms = 4000) {
+  return new Promise(resolve => {
+    const t0 = performance.now();
+    (function poll() {
+      if (v.videoWidth > 0 && v.videoHeight > 0 && v.readyState >= 2) return resolve(true);
+      if (performance.now() - t0 > ms) return resolve(false);
+      setTimeout(poll, 60);
+    })();
+  });
+}
+
+async function startCamera(deviceId) {
+  stopCamera();                     // 先释放上一路流，否则摄像头会被自己占住
+  const v = document.getElementById('cam');
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'environment' },
+      video: deviceId ? { deviceId: { exact: deviceId } }
+                      : { width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false,
     });
-    const v = document.getElementById('cam');
     v.srcObject = stream;
-    await v.play();
     vision.video = v;
+    await v.play().catch(() => {});
     vision.on = true;
+
+    if (!await waitForFrames(v)) {
+      const t = stream.getVideoTracks()[0];
+      vision.err = '摄像头打开了，但收不到画面（' + (t ? t.label || '未命名设备' : '无轨道')
+        + '）。多半是被别的程序或另一个页面占用了——关掉它们，或在下面换个设备。';
+      return false;
+    }
     vision.err = '';
     await initPose();
     requestAnimationFrame(visionLoop);
     return true;
   } catch (e) {
-    vision.err = '打不开摄像头：' + e.message;
+    vision.err = '打不开摄像头：'
+      + (e.name === 'NotReadableError' ? '设备被别的程序占用了' : e.message);
     return false;
   }
 }
 
 function stopCamera() {
-  const v = vision.video;
-  if (v && v.srcObject) v.srcObject.getTracks().forEach(t => t.stop());
+  const v = vision.video || document.getElementById('cam');
+  if (v && v.srcObject) {
+    v.srcObject.getTracks().forEach(t => t.stop());
+    v.srcObject = null;
+  }
   vision.on = false;
-  vision.out.pulleys = [null, null];
   vision.out.persons = [];
+}
+
+// 刷新/关页面时一定要把摄像头还回去，否则下次打开会被自己占着，表现就是黑屏
+addEventListener('pagehide', stopCamera);
+
+function cameraDiag() {
+  const v = vision.video;
+  if (!v || !v.srcObject) return '未启动';
+  const t = v.srcObject.getVideoTracks()[0];
+  return `${v.videoWidth}×${v.videoHeight} · readyState ${v.readyState}`
+    + (t ? ` · ${t.readyState}${t.muted ? '（无画面）' : ''} · ${t.label || '未命名'}` : ' · 无轨道');
 }
 
 /* ============================================================
@@ -156,7 +173,7 @@ async function initPose() {
   poseLoading = false;
 }
 
-/* 挂点/重心：躯干上，由双肩中点和双髋中点插值得到。
+/* 人的位置取躯干上一点，由双肩中点和双髋中点插值。
    比手腕稳得多——手腕常常跑到画面边缘或被遮挡。 */
 const TORSO_BLEND = 0.55;   // 0=双肩中点，1=双髋中点
 
@@ -169,100 +186,10 @@ function torsoPoint(lm) {
 }
 
 /* ============================================================
-   绿卡识别：颜色 -> 连通域 -> 形状 -> 空间 -> 时间
-   ============================================================ */
-function rgb2hsv(r, g, b) {
-  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
-  let h = 0;
-  if (d) {
-    if (mx === r) h = 60 * (((g - b) / d) % 6);
-    else if (mx === g) h = 60 * ((b - r) / d + 2);
-    else h = 60 * ((r - g) / d + 4);
-    if (h < 0) h += 360;
-  }
-  return [h, mx ? d / mx : 0, mx / 255];
-}
-
-/* 世界坐标里的 ROI 横带，投影回画面得到扫描范围 */
-function roiBoxImage() {
-  const half = state.span / 2 + 0.35;
-  const yTop = state.beamY + vision.roi.up, yBot = state.beamY - vision.roi.down;
-  const corners = [{ x: -half, y: yTop }, { x: half, y: yTop },
-                   { x: -half, y: yBot }, { x: half, y: yBot }].map(world2img);
-  if (corners.some(c => !c)) return null;
-  return {
-    x0: Math.max(0, Math.min(...corners.map(c => c.x))),
-    x1: Math.min(1, Math.max(...corners.map(c => c.x))),
-    y0: Math.max(0, Math.min(...corners.map(c => c.y))),
-    y1: Math.min(1, Math.max(...corners.map(c => c.y))),
-  };
-}
-
-function detectCards(imgData, W, H) {
-  const g = vision.green, d = imgData.data;
-  const box = roiBoxImage();
-  if (!box) return [];
-
-  const px0 = Math.floor(box.x0 * W), px1 = Math.ceil(box.x1 * W);
-  const py0 = Math.floor(box.y0 * H), py1 = Math.ceil(box.y1 * H);
-  const mask = new Uint8Array(W * H);
-  let count = 0;
-
-  for (let y = py0; y < py1; y++) {
-    for (let x = px0; x < px1; x++) {
-      const i = (y * W + x) * 4;
-      const [h, s, v] = rgb2hsv(d[i], d[i + 1], d[i + 2]);
-      if (h < g.hMin || h > g.hMax || s < g.sMin || v < g.vMin) continue;
-      // 逐点确认确实落在世界坐标的横带里（挡掉透视造成的边角误差）
-      const w = img2world({ x: (x + 0.5) / W, y: (y + 0.5) / H });
-      if (!w) continue;
-      if (w.y > state.beamY + vision.roi.up || w.y < state.beamY - vision.roi.down) continue;
-      if (Math.abs(w.x) > state.span / 2 + 0.35) continue;
-      mask[y * W + x] = 1; count++;
-    }
-  }
-  vision.out.maskCount = count;
-  vision.lastMask = vision.showMask ? { mask, W, H } : null;
-
-  // 连通域（4 邻域，显式栈，避免递归爆栈）
-  const seen = new Uint8Array(W * H), blobs = [], stack = new Int32Array(W * H);
-  for (let y = py0; y < py1; y++) {
-    for (let x = px0; x < px1; x++) {
-      const s0 = y * W + x;
-      if (!mask[s0] || seen[s0]) continue;
-      let sp = 0; stack[sp++] = s0; seen[s0] = 1;
-      let area = 0, sumX = 0, sumY = 0, minX = W, maxX = 0, minY = H, maxY = 0;
-      while (sp) {
-        const p = stack[--sp], py = (p / W) | 0, px = p - py * W;
-        area++; sumX += px; sumY += py;
-        if (px < minX) minX = px; if (px > maxX) maxX = px;
-        if (py < minY) minY = py; if (py > maxY) maxY = py;
-        if (px > px0 && mask[p - 1] && !seen[p - 1]) { seen[p - 1] = 1; stack[sp++] = p - 1; }
-        if (px < px1 - 1 && mask[p + 1] && !seen[p + 1]) { seen[p + 1] = 1; stack[sp++] = p + 1; }
-        if (py > py0 && mask[p - W] && !seen[p - W]) { seen[p - W] = 1; stack[sp++] = p - W; }
-        if (py < py1 - 1 && mask[p + W] && !seen[p + W]) { seen[p + W] = 1; stack[sp++] = p + W; }
-      }
-      const bw = maxX - minX + 1, bh = maxY - minY + 1;
-      const ar = bw / bh, fill = area / (bw * bh);
-      // 形状过滤：长宽比接近 2:1，且填满外接框（矩形才填得满）
-      if (area < g.minArea || area > g.maxArea) continue;
-      if (ar < g.arMin || ar > g.arMax) continue;
-      if (fill < g.fillMin) continue;
-      blobs.push({ area, cx: (sumX / area + 0.5) / W, cy: (sumY / area + 0.5) / H });
-    }
-  }
-  blobs.sort((a, b) => b.area - a.area);
-  return blobs.slice(0, 2)
-    .map(b => ({ ...b, world: img2world({ x: b.cx, y: b.cy }) }))
-    .filter(b => b.world)
-    .sort((a, b) => a.world.x - b.world.x);   // 左右永远不会互换，按 x 排序即可分辨
-}
-
-/* ============================================================
    平滑与跳变抑制
    ============================================================ */
-const SMOOTH = 0.35;        // 指数平滑系数，越小越稳但越迟钝
-const JUMP_LIMIT = 0.9;     // 单帧位移超过这个米数就当误检丢掉
+const SMOOTH = 0.35;        // 越小越稳、越迟钝
+const JUMP_LIMIT = 0.9;     // 单帧位移超过这么多米就当误检丢掉
 
 function smoothTrack(prev, next, missCount) {
   if (!next) return prev;
@@ -271,7 +198,7 @@ function smoothTrack(prev, next, missCount) {
   return { x: prev.x + (next.x - prev.x) * SMOOTH, y: prev.y + (next.y - prev.y) * SMOOTH };
 }
 
-const track = { pulleys: [null, null], persons: [], miss: [0, 0], pmiss: [0, 0] };
+const track = { persons: [], miss: [0, 0] };
 
 /* ============================================================
    主循环
@@ -282,40 +209,24 @@ function visionLoop(t) {
   if (!vision.on) return;
   const v = vision.video;
 
-  if (v && v.readyState >= 2 && vision.ready) {
-    const W = PROC_W, H = Math.max(1, Math.round(PROC_W * v.videoHeight / v.videoWidth));
-    if (proc.width !== W || proc.height !== H) { proc.width = W; proc.height = H; }
-    pctx.drawImage(v, 0, 0, W, H);
-
-    // --- 绿卡（滑轮设成手动时就不用跑了，省一半 CPU）---
-    if (state.pulleySource === 'auto' || vision.showMask) {
-      const cards = detectCards(pctx.getImageData(0, 0, W, H), W, H);
+  if (v && v.readyState >= 2 && poseLandmarker) {
+    try {
+      const res = poseLandmarker.detectForVideo(v, performance.now());
+      const raw = (res.landmarks || []).map(torsoPoint).filter(Boolean);
+      vision.out.poseCount = raw.length;
+      vision.lastPoseImg = raw;                       // 叠加层画标记用
+      const pts = vision.ready
+        ? raw.map(imgToWorld).filter(Boolean).sort((a, b) => a.x - b.x)
+        : [];
       for (let i = 0; i < 2; i++) {
-        const found = cards[i] ? cards[i].world : null;
+        const found = pts[i] || null;
         if (found) track.miss[i] = 0; else track.miss[i]++;
-        track.pulleys[i] = smoothTrack(track.pulleys[i], found, track.miss[i]);
-        vision.out.pulleys[i] = track.miss[i] > 30 ? null : track.pulleys[i];
+        track.persons[i] = smoothTrack(track.persons[i], found, track.miss[i]);
       }
-    }
-
-    // --- 人 ---
-    if (poseLandmarker) {
-      try {
-        const res = poseLandmarker.detectForVideo(v, performance.now());
-        const pts = (res.landmarks || []).map(torsoPoint).filter(Boolean)
-          .map(p => img2world(p)).filter(Boolean)
-          .sort((a, b) => a.x - b.x);
-        vision.out.poseCount = pts.length;
-        for (let i = 0; i < 2; i++) {
-          const found = pts[i] || null;
-          if (found) track.pmiss[i] = 0; else track.pmiss[i]++;
-          track.persons[i] = smoothTrack(track.persons[i], found, track.pmiss[i]);
-        }
-        vision.out.persons = track.persons
-          .map((p, i) => (track.pmiss[i] > 20 ? null : p))
-          .filter(Boolean);
-      } catch (e) { /* 单帧失败无所谓，下一帧继续 */ }
-    }
+      vision.out.persons = track.persons
+        .map((p, i) => (track.miss[i] > 20 ? null : p))
+        .filter(Boolean);
+    } catch (e) { /* 单帧失败无所谓，下一帧继续 */ }
   }
 
   if (lastT) vision.fps = vision.fps * 0.9 + (1000 / Math.max(1, t - lastT)) * 0.1;

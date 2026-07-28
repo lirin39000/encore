@@ -203,8 +203,22 @@ body{
   padding:7px 10px;border-radius:8px;margin-bottom:10px;
 }
 .status b{font-family:ui-monospace,"Consolas",monospace}
-/* 标定状态：没标定=橙色警示，标定中=青色，完成=绿色 */
+/* 状态条：未就绪=橙色，进行中=青色，完成=绿色 */
 .warnbox{color:#ffc98a;background:rgba(255,176,32,.12);border-color:rgba(255,176,32,.45)}
 .calibbox{color:#8ceaf7;background:rgba(34,211,238,.12);border-color:rgba(34,211,238,.5)}
 .okbox{color:#7ef0a6;background:rgba(57,255,106,.1);border-color:rgba(57,255,106,.4)}
 .sub b{color:var(--accent)}
+
+/* 摄像头诊断行：黑屏时靠它定位，不用猜 */
+.diag{
+  font-family:ui-monospace,"Consolas",monospace;font-size:11px;
+  color:var(--ink3);background:rgba(255,255,255,.03);
+  border:1px solid var(--line);border-radius:7px;
+  padding:6px 9px;margin-bottom:10px;word-break:break-all;line-height:1.5;
+}
+#camSelect{
+  grid-column:1/-1;width:100%;font:inherit;font-size:12.5px;
+  padding:7px 9px;border-radius:8px;margin-top:3px;
+  background:rgba(10,16,30,.9);color:var(--ink);
+  border:1px solid var(--line);
+}

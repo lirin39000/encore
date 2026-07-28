@@ -29,11 +29,11 @@
       <div class="warn" id="warn" hidden></div>
     </div>
 
-    <!-- 摄像头画面：标定和调参时看，平时可收起 -->
+    <!-- 摄像头画面：点选滑轮时看，平时可收起 -->
     <div class="stage camwrap" id="camwrap" hidden>
       <video id="cam" playsinline muted></video>
       <canvas id="camoverlay"></canvas>
-      <div class="hint" id="camhint">先点「开始标定」，然后按提示在画面上点 4 个点</div>
+      <div class="hint" id="camhint">先点右侧按钮，然后在画面上点两个滑轮</div>
     </div>
   </section>
 
@@ -51,20 +51,16 @@
         <button class="seg-btn" data-src="camera">摄像头</button>
       </div>
       <div id="camStatus" class="status" hidden></div>
+      <div id="camPicker" hidden>
+        <label class="ctl"><span>用哪个摄像头</span>
+          <select id="camSelect"></select></label>
+        <div id="camDiag" class="diag">未启动</div>
+      </div>
       <div id="camPanel" hidden>
-        <div id="calibState" class="status warnbox">① 还没标定</div>
-        <button class="reset" id="calibBtn">开始标定（在画面上点 4 个点）</button>
-        <button class="reset" id="repickBtn">滑轮动了？只重点这两个滑轮</button>
-        <p class="sub">不用量任何尺寸。两个横梁端点只用来确定水平方向。</p>
-
-        <p class="sub" style="margin-top:14px">滑轮位置怎么定</p>
-        <div class="seg">
-          <button class="seg-btn active" data-pulley="manual">画面上点选</button>
-          <button class="seg-btn" data-pulley="auto">绿卡识别</button>
-        </div>
-
+        <div id="calibState" class="status warnbox">还没点滑轮</div>
+        <button class="reset" id="pickBtn">在画面上点两个滑轮</button>
+        <p class="sub">滑轮被推动之后，重新点一次就行。人的位置全自动跟踪。</p>
         <label class="chk"><input type="checkbox" id="showCam" checked> 显示摄像头画面</label>
-        <label class="chk"><input type="checkbox" id="showMask"> 显示绿色识别掩码</label>
       </div>
     </div>
 
@@ -92,30 +88,6 @@
       <button class="reset" id="reset">恢复初始位置</button>
     </div>
 
-
-    <div class="card" id="greenCard" hidden>
-      <h2>绿卡识别调参</h2>
-      <p class="sub">先勾上「显示绿色识别掩码」，一边调一边看：目标是<b>只有两张卡是亮的</b>。</p>
-
-      <label class="ctl"><span>色相下限 H</span>
-        <input type="range" id="hMin" min="40" max="120" step="1" value="75">
-        <output id="hMinOut">75</output></label>
-      <label class="ctl"><span>色相上限 H</span>
-        <input type="range" id="hMax" min="120" max="220" step="1" value="175">
-        <output id="hMaxOut">175</output></label>
-      <label class="ctl"><span>饱和度下限 S</span>
-        <input type="range" id="sMin" min="0.1" max="0.9" step="0.01" value="0.35">
-        <output id="sMinOut">0.35</output></label>
-      <label class="ctl"><span>亮度下限 V</span>
-        <input type="range" id="vMin" min="0.05" max="0.8" step="0.01" value="0.22">
-        <output id="vMinOut">0.22</output></label>
-      <label class="ctl"><span>最小面积</span>
-        <input type="range" id="minArea" min="10" max="400" step="5" value="40">
-        <output id="minAreaOut">40</output></label>
-      <label class="ctl"><span>矩形填充度下限</span>
-        <input type="range" id="fillMin" min="0.3" max="0.95" step="0.01" value="0.60">
-        <output id="fillMinOut">0.60</output></label>
-    </div>
 
   </aside>
 </main>

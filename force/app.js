@@ -22,8 +22,7 @@ const state = {
   opt: { parallel: true, values: true },   // 固定：画平行四边形和数值，不画角度
 
   source: 'mouse',              // 'mouse' 鼠标模拟 | 'camera' 摄像头实测
-  pulleySource: 'manual',       // 摄像头模式下滑轮怎么定：'manual' 在画面上点选 | 'auto' 绿卡识别
-  pulleyY: null,                // 点选滑轮后记下的真实高度，鼠标模拟时为 null
+  pulleyY: null,                // 摄像头模式下滑轮的真实高度，鼠标模拟时为 null
 };
 
 const COLOR = {
@@ -40,6 +39,8 @@ const ctx = cv.getContext('2d');
 let view = { s: 100, ox: 0, oy: 0 }; // s = 每米多少像素
 
 function worldBox() {
+  // 摄像头模式下滑轮位置由点选决定，用一个固定的大视野框住，避免画面随人晃动而缩放
+  if (state.source === 'camera') return { x0: -2.9, x1: 2.9, y0: -0.15, y1: 3.35 };
   return {
     x0: -state.span / 2 - 0.75, x1: state.span / 2 + 0.75,
     y0: -0.12, y1: state.beamY + 0.55,
@@ -126,7 +127,31 @@ function text(str, x, y, color, font, align, baseline) {
 }
 
 /* ---------------- 场景：龙门架 ---------------- */
+/* 摄像头模式下没有「跨度」这个已知量，横梁就按两个滑轮的连线来画，
+   两端各外延一段。这样画出来的横梁一定穿过两个滑轮，和实物对得上。 */
+function drawRigFromPulleys() {
+  const P1 = pulleyPos(0), P2 = pulleyPos(1);
+  const d = vunit(vsub(P2, P1)), ext = 0.75;
+  const a = vadd(P1, vmul(d, -ext)), b = vadd(P2, vmul(d, ext));
+
+  line({ x: X(-99), y: Y(0) }, { x: X(99), y: Y(0) }, 'rgba(140,178,255,.16)', 3);
+
+  ctx.save();
+  ctx.strokeStyle = COLOR.steel; ctx.lineWidth = Math.max(6, 0.11 * view.s);
+  ctx.lineCap = 'round';
+  ctx.shadowColor = 'rgba(34,211,238,.25)'; ctx.shadowBlur = 8;
+  ctx.beginPath(); ctx.moveTo(X(a.x), Y(a.y)); ctx.lineTo(X(b.x), Y(b.y)); ctx.stroke();
+  ctx.restore();
+
+  // 立柱：从横梁两端斜着落地，只是让画面像个龙门架，不参与任何计算
+  [a, b].forEach((p, i) => {
+    const out = (i ? 1 : -1) * 0.55;
+    line({ x: X(p.x), y: Y(p.y) }, { x: X(p.x + out), y: Y(0) }, COLOR.steel, 7);
+  });
+}
+
 function drawRig() {
+  if (state.source === 'camera') return drawRigFromPulleys();
   const half = state.span / 2;
   const by = state.beamY;
   const ceil = by + 0.42;
@@ -168,43 +193,36 @@ function pulleyPos(i) {
 }
 
 function drawTrolley(i) {
-  const px = state.pulleyX[i], by = state.beamY;
-  const sx = X(px);
+  const cam = state.source === 'camera';
+  const hookW = pulleyPos(i);
+  const hook = S(hookW);
+  // 摄像头模式下滑轮位置就是点选的那个点，小车画在它正上方一点
+  const bodyY = cam ? hookW.y + 0.16 : state.beamY;
+  const sx = hook.x;
 
-  // 小车
   ctx.save();
   ctx.fillStyle = '#3a4a6b'; ctx.strokeStyle = COLOR.steelDark; ctx.lineWidth = 1.5;
   const w = 0.30 * view.s, h = 0.22 * view.s;
   ctx.beginPath();
-  ctx.roundRect(sx - w / 2, Y(by) - 0.05 * view.s, w, h, 3);
+  ctx.roundRect(sx - w / 2, Y(bodyY) - 0.05 * view.s, w, h, 3);
   ctx.fill(); ctx.stroke();
   ctx.restore();
 
   // 挂钩
-  const hook = S(pulleyPos(i));
-  line({ x: sx, y: Y(by - 0.17) }, hook, COLOR.steelDark, 3);
+  line({ x: sx, y: Y(bodyY - 0.17) }, hook, COLOR.steelDark, 3);
   ctx.save();
   ctx.fillStyle = '#9db3dc';
   ctx.beginPath(); ctx.arc(hook.x, hook.y, 5, 0, 7); ctx.fill();
   ctx.restore();
 
-  // 荧光绿识别卡（对应真机上要贴的色卡）
-  const cw = 0.20 * view.s, ch = 0.10 * view.s;
-  const cy = Y(by - 0.135);
-  ctx.save();
-  ctx.fillStyle = '#05070c';
-  ctx.fillRect(sx - cw / 2 - 2, cy - ch / 2 - 2, cw + 4, ch + 4);
-  ctx.fillStyle = '#39ff6a';
-  ctx.shadowColor = '#39ff6a'; ctx.shadowBlur = 10;
-  ctx.fillRect(sx - cw / 2, cy - ch / 2, cw, ch);
-  ctx.restore();
-
-  // 拖拽把手
-  ctx.save();
-  ctx.strokeStyle = COLOR.accent;
-  ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(sx, Y(by + 0.03), 15, 0, 7); ctx.stroke();
-  ctx.restore();
+  // 拖拽把手（摄像头模式下位置由点选决定，不显示）
+  if (!cam) {
+    ctx.save();
+    ctx.strokeStyle = COLOR.accent;
+    ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(sx, Y(state.beamY + 0.03), 15, 0, 7); ctx.stroke();
+    ctx.restore();
+  }
 }
 
 /* ---------------- 绳（只是绳，不是力）---------------- */
@@ -330,19 +348,16 @@ const fvec = (from, dir, mag, color, label) => {
 /* ---------------- 主绘制 ---------------- */
 let last = null;   // 最近一次计算结果，供读数与图表使用
 
-/* 摄像头模式：把识别到的世界坐标灌进 state，后面的绘制逻辑完全不用改。
-   识别不到的目标保持上一帧的值，并回报缺了什么。 */
+/* 摄像头模式：滑轮来自画面点选，人来自 MediaPipe。
+   都换算成世界坐标灌进 state，后面的绘制逻辑完全不用改。 */
 function syncFromVision() {
   if (state.source !== 'camera' || typeof vision === 'undefined' || !vision.ready) return null;
+  const pw = pulleyWorld();
+  if (!pw) return null;
+  state.pulleyX = [pw[0].x, pw[1].x];
+  state.pulleyY = [pw[0].y, pw[1].y];
+
   const miss = [];
-  // 手动模式下滑轮位置来自画面点选（已写进 state），这里不用管
-  if (state.pulleySource === 'auto') {
-    for (let i = 0; i < 2; i++) {
-      const p = vision.out.pulleys[i];
-      if (p) { state.pulleyX[i] = p.x; (state.pulleyY = state.pulleyY || [])[i] = p.y; }
-      else miss.push('滑轮' + (i + 1));
-    }
-  }
   const need = state.mode === 'A' ? 1 : 2;
   const ps = vision.out.persons;
   if (state.mode === 'A' && ps[0]) state.anchorA = { x: ps[0].x, y: ps[0].y };
@@ -351,11 +366,12 @@ function syncFromVision() {
 }
 
 function draw() {
+  // 先同步识别结果，横梁要按最新的滑轮位置来画
+  const live = syncFromVision();
+
   resize();
   ctx.clearRect(0, 0, cv.width, cv.height);
   drawRig();
-
-  const live = syncFromVision();
 
   if (state.mode === 'A') drawModeA();
   else if (live && live.persons.length === 2) drawModeBLive(live.persons);
@@ -529,7 +545,7 @@ function drawModeBLive(persons) {
       fvec(com[i], { x: Math.sign(Fx[i]), y: 0 }, Math.abs(Fx[i]), COLOR.F, Math.round(Math.abs(Fx[i])) + ' N');
   }
 
-  // 两个独立测得的 F 差得太多，通常是人晃出了标定平面，或体重填错了
+  // 两个独立测得的 F 差得太多，通常是人晃出了摄像头正对的那个平面，或体重填错了
   setWarn(F > 25 && mismatch / F > 0.25
     ? '左右两侧测得的相互作用力相差 ' + Math.round(mismatch) + ' N —— 检查体重是否填对、人有没有前后晃出平面'
     : '');
@@ -585,18 +601,12 @@ function renderReadout() {
 let dragging = null;
 
 function hitTest(sx, sy) {
-  const cam = state.source === 'camera';
+  if (state.source === 'camera') return null;   // 位置全部由摄像头决定
   const near = (p, r) => Math.hypot(sx - p.x, sy - p.y) < r;
-
-  // 滑轮：设成手动时，即使在摄像头模式下也照样能拖
-  if (!cam || state.pulleySource === 'manual') {
-    for (let i = 0; i < 2; i++) {
-      if (near({ x: X(state.pulleyX[i]), y: Y(state.beamY + 0.03) }, 20)) return 'p' + i;
-      if (near({ x: X(state.pulleyX[i]), y: Y(state.beamY - 0.14) }, 20)) return 'p' + i;
-    }
+  for (let i = 0; i < 2; i++) {
+    if (near({ x: X(state.pulleyX[i]), y: Y(state.beamY + 0.03) }, 20)) return 'p' + i;
+    if (near({ x: X(state.pulleyX[i]), y: Y(state.beamY - 0.14) }, 20)) return 'p' + i;
   }
-  if (cam) return null;                 // 人的位置永远由识别决定，不接受拖拽
-
   if (state.mode === 'A') {
     if (near(S(state.anchorA), 26)) return 'a';
   } else {

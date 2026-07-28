@@ -14,6 +14,27 @@
       "runtimeArgs": ["app.main:app", "--reload", "--port", "8000"],
       "cwd": "backend",
       "port": 8000
+    },
+    {
+      "name": "birthday",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8765"],
+      "cwd": "birthday",
+      "port": 8765
+    },
+    {
+      "name": "towhere",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8123"],
+      "cwd": "towhere",
+      "port": 8123
+    },
+    {
+      "name": "force",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8321"],
+      "cwd": "force",
+      "port": 8321
     }
   ]
 }

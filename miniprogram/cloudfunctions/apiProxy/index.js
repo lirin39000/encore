@@ -9,7 +9,7 @@ const cloud = require('wx-server-sdk')
 cloud.init()
 const db = cloud.database()
 
-const BACKEND_HOST = 'encore-production-9222.up.railway.app'
+const BACKEND_HOST = 'encore-production-cbe3.up.railway.app'
 
 // 密钥存在云数据库的一条记录里，不用云函数的环境变量。
 //

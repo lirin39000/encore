@@ -10,6 +10,9 @@ export const theme = {
   glassBorder: "rgba(255,255,255,0.14)",
   accent: "#C4472E",
   gold: "#B8862E",
+  // 海报图片加载出来之前的占位底色。故意用一个安静的暖调深色而不是强调色——
+  // 一屏好几张卡片同时加载时，强调红铺满海报区会连成刺眼的一片，占位图应该往后退
+  posterPlaceholder: "#352A22",
 } as const;
 
 export const fontSerif = "'Noto Serif SC', serif";

@@ -100,7 +100,7 @@ export default function ShowCard({ show }: ShowCardProps) {
         >
           <div
             style={{
-              position: 'absolute', inset: -24, backgroundImage: posterImage, backgroundColor: theme.accent,
+              position: 'absolute', inset: -24, backgroundImage: posterImage, backgroundColor: theme.posterPlaceholder,
               backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(26px)', transform: 'scale(1.05)', zIndex: 0,
             }}
           />
@@ -139,7 +139,7 @@ export default function ShowCard({ show }: ShowCardProps) {
           <div
             style={{
               position: 'relative', width: 118, flexShrink: 0, zIndex: 2,
-              backgroundImage: posterImage, backgroundColor: theme.accent, backgroundSize: 'cover', backgroundPosition: 'center',
+              backgroundImage: posterImage, backgroundColor: theme.posterPlaceholder, backgroundSize: 'cover', backgroundPosition: 'center',
               cursor: show.poster_url ? 'zoom-in' : 'default',
             }}
             onClick={() => show.poster_url && setLightboxOpen(true)}
@@ -198,7 +198,7 @@ export default function ShowCard({ show }: ShowCardProps) {
     width: '100%',
     aspectRatio: '4/3',
     backgroundImage: posterImage,
-    backgroundColor: theme.accent,
+    backgroundColor: theme.posterPlaceholder,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     cursor: show.poster_url ? 'zoom-in' : 'default',
@@ -210,7 +210,7 @@ export default function ShowCard({ show }: ShowCardProps) {
     position: 'absolute',
     inset: -24,
     backgroundImage: posterImage,
-    backgroundColor: theme.accent,
+    backgroundColor: theme.posterPlaceholder,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     filter: 'blur(26px)',

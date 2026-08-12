@@ -131,7 +131,8 @@
   right: -48rpx;
   bottom: -48rpx;
   left: -48rpx;
-  background-color: #C4472E;
+  /* 海报加载前的占位底色：安静的暖调深色，而不是刺眼的强调红 */
+  background-color: #352A22;
   background-size: cover;
   background-position: center;
   filter: blur(26px);
@@ -218,7 +219,8 @@
   width: 236rpx;
   flex-shrink: 0;
   z-index: 2;
-  background-color: #C4472E;
+  /* 海报加载前的占位底色：安静的暖调深色，而不是刺眼的强调红 */
+  background-color: #352A22;
   background-size: cover;
   background-position: center;
 }

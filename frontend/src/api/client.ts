@@ -8,6 +8,17 @@ function authHeaders(): HeadersInit {
 }
 
 async function handle<T>(res: Response): Promise<T> {
+  if (res.status === 401) {
+    // 带着 token 还被后端拒掉 = 登录已过期(session 30 天到期)。清掉本地登录态，
+    // 页面会立刻从"加载中"回到"去登录"引导，并弹出登录框——否则前端一直以为自己
+    // 登录着，请求一遍遍 401，页面永远卡在加载中(真实用户用满 30 天必踩)。
+    // 没 token 时的 401 是正常的匿名请求，不处理
+    const { token, logout, openLoginModal } = useAuthStore.getState()
+    if (token) {
+      logout()
+      openLoginModal()
+    }
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => null)
     throw new Error(body?.detail || `请求失败: ${res.status}`)

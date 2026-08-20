@@ -62,6 +62,14 @@ function stripAuthHeaders(headers) {
 }
 
 exports.main = async (event) => {
+  // 定时触发器只为让这个云函数保持"热"的。闲置一会儿后再被调用会冷启动——慢，甚至顶到
+  // 超时报 -504003(邮箱页"加载中很久"就是撞上这个)。每 5 分钟自动唤醒一次，用户真正
+  // 来调时命中的就是热实例，很快。唤醒时不转发给后端，顺手把密钥缓存预热一下就返回
+  if (event && event.Type === 'Timer') {
+    await getProxySecret()
+    return { statusCode: 200, data: 'warm' }
+  }
+
   const { path = '/', method = 'GET', body, headers = {} } = event
 
   // 微信保证这个 openid 是真的，客户端伪造不了

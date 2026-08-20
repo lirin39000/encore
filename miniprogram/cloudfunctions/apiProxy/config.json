@@ -1,4 +1,11 @@
 {
   "timeout": 20,
-  "memorySize": 256
+  "memorySize": 256,
+  "triggers": [
+    {
+      "name": "keepWarm",
+      "type": "timer",
+      "config": "0 */5 * * * * *"
+    }
+  ]
 }

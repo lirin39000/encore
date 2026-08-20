@@ -99,8 +99,9 @@ Page({
       this.setData({ sub: res.subscription, loadingSub: false, subLoaded: true })
       wx.setStorageSync('emailSubCache', { sub: res.subscription })
     } catch (e) {
+      // 这是进页面就自动跑的后台加载，失败了不该弹窗打扰用户。界面已经默认显示输入框
+      // (或上次缓存的状态)，静默失败即可，下次进来或提交时会再取
       this.setData({ loadingSub: false })
-      wx.showToast({ title: e.message, icon: 'none' })
     }
   },
 

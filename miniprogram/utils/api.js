@@ -7,7 +7,7 @@
 // 身份不用在这里管：云函数会把微信验证过的 openid 和共享密钥加进请求头，
 // 后端据此认人。这边传的任何认证头都会被云函数丢掉，传了也没用。
 
-function call(path, method = 'GET', body) {
+function call(path, method = 'GET', body, _retried = false) {
   return new Promise((resolve, reject) => {
     wx.cloud.callFunction({
       name: 'apiProxy',
@@ -33,7 +33,18 @@ function call(path, method = 'GET', body) {
         }
         resolve(result.data)
       },
-      fail: (err) => reject(new Error(err.errMsg || '云函数调用失败')),
+      // 云函数偶发冷启动/网络抖动会报 -504003 这类错(errMsg 长这样：
+      // "cloud.callFunction:fail Error: errCode: -504003")。这种是一次性的，
+      // 自动重试一次通常就好了——冷启动那下过去了，第二次调的是热的函数。
+      // 重试还失败才对外报错，且只给能看懂的友好文案，绝不把原始报错甩给用户
+      fail: (err) => {
+        if (!_retried) {
+          setTimeout(() => call(path, method, body, true).then(resolve, reject), 400)
+          return
+        }
+        console.error('apiProxy 调用失败:', err.errMsg)
+        reject(new Error('网络不太稳定，请稍后重试'))
+      },
     })
   })
 }

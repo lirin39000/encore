@@ -81,14 +81,30 @@ exports.main = async (event) => {
   // 只回报"有没有"，不回报密钥本身。旧版本没有这个分支，会把 __diag 当成后端路径去请求
   // 然后拿到 404——所以这个入口本身就能证明部署有没有生效
   if (path === '__diag') {
+    // 现场实测：这个部署到底用的哪个后端地址、云函数能不能真的连上它。
+    // backendPing.ok=true 说明云函数→后端这条路通(问题在别处)；
+    // ok=false + error/超时 说明就是跨境连不上后端(网络问题坐实)
+    const started = Date.now()
+    const backendPing = await new Promise((resolve) => {
+      const req = https.request(
+        { hostname: BACKEND_HOST, path: '/shows?limit=1', method: 'GET', headers: { 'Content-Type': 'application/json' } },
+        (res) => {
+          res.on('data', () => {})
+          res.on('end', () => resolve({ ok: true, status: res.statusCode, ms: Date.now() - started }))
+        }
+      )
+      req.setTimeout(6000, () => req.destroy(new Error('timeout 6s')))
+      req.on('error', (err) => resolve({ ok: false, error: err.message, ms: Date.now() - started }))
+      req.end()
+    })
     return {
       statusCode: 200,
       data: {
-        version: 'secret-from-db',
+        version: 'diag-with-ping',
+        backendHost: BACKEND_HOST,
+        backendPing,
         hasOpenid: Boolean(OPENID),
         hasSecret: Boolean(proxySecret),
-        secretLength: proxySecret ? proxySecret.length : 0,
-        // 密钥是从环境变量还是数据库拿到的，以及拿失败时的原因
         secretSource: secret.source,
       },
     }

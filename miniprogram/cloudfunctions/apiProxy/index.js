@@ -94,46 +94,52 @@ exports.main = async (event) => {
     }
   }
 
-  return new Promise((resolve) => {
-    const bodyStr = body !== undefined ? JSON.stringify(body) : undefined
+  const bodyStr = body !== undefined ? JSON.stringify(body) : undefined
+  const options = {
+    hostname: BACKEND_HOST,
+    path,
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...stripAuthHeaders(headers),
+      // 放在展开之后，确保覆盖而不是被覆盖
+      ...(OPENID && proxySecret
+        ? { [OPENID_HEADER]: OPENID, [SECRET_HEADER]: proxySecret }
+        : {}),
+      ...(bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
+    },
+  }
 
-    const req = https.request(
-      {
-        hostname: BACKEND_HOST,
-        path,
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...stripAuthHeaders(headers),
-          // 放在展开之后，确保覆盖而不是被覆盖
-          ...(OPENID && proxySecret
-            ? { [OPENID_HEADER]: OPENID, [SECRET_HEADER]: proxySecret }
-            : {}),
-          ...(bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
-        },
-      },
-      (res) => {
+  // 国内 Tencent 云机房到海外后端(Railway)的跨境链路时好时坏，偶尔整段卡住不响应。
+  // 不设超时的话请求会一直挂着，直到云函数 20 秒被杀——小程序就收到 -504003，还白等 20 秒
+  // (邮箱页"加载很久然后报错"就是这么来的)。对策：单次请求 6 秒超时，卡住就当失败；
+  // GET 这类只读请求整体最多试 3 次(任一次通了就返回)，写请求只试 1 次以免重复提交。
+  const ATTEMPT_TIMEOUT_MS = 6000
+  const maxAttempts = method === 'GET' ? 3 : 1
+
+  function attempt() {
+    return new Promise((resolve) => {
+      const req = https.request(options, (res) => {
         let raw = ''
-        res.on('data', (chunk) => {
-          raw += chunk
-        })
+        res.on('data', (chunk) => { raw += chunk })
         res.on('end', () => {
           let data
-          try {
-            data = JSON.parse(raw)
-          } catch (e) {
-            data = raw
-          }
-          resolve({ statusCode: res.statusCode, data })
+          try { data = JSON.parse(raw) } catch (e) { data = raw }
+          resolve({ ok: true, result: { statusCode: res.statusCode, data } })
         })
-      }
-    )
-
-    req.on('error', (err) => {
-      resolve({ statusCode: 0, error: err.message })
+      })
+      // setTimeout 只是"这段时间没动静就触发"，真正中断连接要靠 destroy，否则请求还挂着
+      req.setTimeout(ATTEMPT_TIMEOUT_MS, () => req.destroy(new Error('请求超时')))
+      req.on('error', (err) => resolve({ ok: false, error: err.message }))
+      if (bodyStr) req.write(bodyStr)
+      req.end()
     })
+  }
 
-    if (bodyStr) req.write(bodyStr)
-    req.end()
-  })
+  let last = { ok: false, error: '后端连接失败' }
+  for (let i = 0; i < maxAttempts; i++) {
+    last = await attempt()
+    if (last.ok) return last.result
+  }
+  return { statusCode: 0, error: last.error || '后端连接失败' }
 }

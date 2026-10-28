@@ -5,7 +5,16 @@ on:
     # UTC 00:00 = 北京时间 08:00。挪到早上是因为流程最后一步会给订阅用户发提醒邮件，
     # 原来半夜 0 点跑，邮件就半夜到，手机开了邮件提醒的人会被吵醒
     - cron: "0 0 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      # 补跑积压数据时用。补跑会把断档期间的演出一次性入库，first_seen 全是当天，
+      # 自动推送会判定它们"26 小时内新上"而按常规格式群发。想改成一封带说明的
+      # 补发信时，就勾上这个，让这次跑完不发信、也不写 notify_log(两者在
+      # notify_new_shows.py 里是绑定的：不发就不记，所以之后补发不会漏)
+      skip_email:
+        description: "这次不发提醒邮件（补跑积压数据时勾上）"
+        type: boolean
+        default: false
 
 jobs:
   scrape:
@@ -51,7 +60,8 @@ jobs:
           TENCENT_SECRET_KEY: ${{ secrets.TENCENT_SECRET_KEY }}
           # 邮件推送用。这两个都不是密钥：一个是发信地址，一个是邮件里验证/退订链接的
           # 基址(必须是外网可达的后端地址)。缺了的话推送那步会静默跳过，不报错
-          ALIYUN_DM_ACCOUNT_NAME: "notice@mail.encore.monster"
+          # 置空 = notify_new_shows 里 aliyun_dm.is_configured() 为假，那一步直接跳过
+          ALIYUN_DM_ACCOUNT_NAME: ${{ inputs.skip_email && '' || 'notice@mail.encore.monster' }}
           SITE_BASE_URL: "https://encore-production-cbe3.up.railway.app"
           # 推送有邮件发失败时，往这个地址发一封纯文本预警。这个流程没人盯日志，
           # 不报警的话出问题只能等用户来问。不是密钥，就是你自己的收件邮箱

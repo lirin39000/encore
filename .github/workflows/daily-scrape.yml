@@ -11,8 +11,17 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # 最后那步"续命"要往仓库推一个提交，默认令牌在新仓库里是只读的，得显式开写权限
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 续命提交用这个令牌推。优先用 KEEPALIVE_TOKEN(你自己的个人令牌)：
+          # GitHub 官方没承诺机器人(GITHUB_TOKEN)的提交算"仓库活动"，个人令牌的提交
+          # 跟你本人提交没区别，一定算。没配这个 secret 时自动退回默认令牌——
+          # 大概也有效，只是没保证
+          token: ${{ secrets.KEEPALIVE_TOKEN || github.token }}
 
       - uses: actions/setup-python@v5
         with:
@@ -51,3 +60,31 @@ jobs:
           # 万一以后又被拦，改回 text 即可
           EMAIL_NOTIFY_MODE: "html"
         run: python daily_pipeline.py
+
+      # GitHub 的规则：仓库 60 天没有新提交，定时任务就被自动停用。2026-10-21 已经
+      # 被停过一次(最后一次提交是 8-22)，数据断了 7 天才发现——下游全是静默的：
+      # 没有新演出、小程序数据不动、邮件不发，但后端 /health 一切正常，看不出来。
+      # 所以每次跑完往仓库写一个时间戳，把这个 60 天计时器推回去。
+      #
+      # if: always() 是关键：前面步骤失败时也必须跑。否则抓取要是连续坏 60 天，
+      # 续命也跟着不执行，定时任务又被静默停用——一个故障变成两个，而且第二个
+      # 更难发现。这一步失败会让整个 run 变红，GitHub 会给你发失败邮件，正好当报警
+      #
+      # 只在"已经 50 天没提交"时才提交，不是每天都提：平时你自己改代码就算活动了，
+      # 没必要往历史里塞 365 个无意义的提交
+      - name: 续命——把定时任务的 60 天计时器推回去
+        if: always()
+        run: |
+          quiet_days=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          echo "距离仓库上一次提交 ${quiet_days} 天（60 天就会被停用）"
+          if [ "$quiet_days" -lt 50 ]; then
+            echo "还没到 50 天，不用提交"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          date -u "+%Y-%m-%dT%H:%M:%SZ" > .github/keepalive.txt
+          git add .github/keepalive.txt
+          git commit -m "Keep the daily scrape schedule from being auto-disabled"
+          git push
+          echo "已提交时间戳，60 天计时器重新开始"
